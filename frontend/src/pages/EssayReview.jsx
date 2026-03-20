@@ -9,11 +9,19 @@ export default function EssayReview({ profile, onResult }) {
   const [result, setResult]       = useState(null);
   const [error, setError]         = useState(null);
 
-  async function handleSubmit() {
+async function handleSubmit() {
     if (essayText.trim().length < 100) { setError("Nhập tối thiểu 100 ký tự."); return; }
     setLoading(true); setError(null);
     try {
-      const data = await reviewEssay(essayText, profile.school_name || "MIT", profile);
+      // ← Thêm đoạn này: convert activities string → array
+      const cleanProfile = {
+        ...profile,
+        activities: typeof profile.activities === "string"
+          ? profile.activities.split(",").map(a => a.trim()).filter(Boolean)
+          : profile.activities || [],
+      };
+
+      const data = await reviewEssay(essayText, profile.school_name || "MIT", cleanProfile);
       setResult(data);
       onResult(data);
     } catch {
