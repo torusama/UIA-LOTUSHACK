@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from services.openai_service import chat_completion
-from prompts.essay_prompts import build_essay_prompt
+from prompts.essay_prompts import build_essay_prompt, build_essay_rewrite_prompt
 
 router = APIRouter()
 
@@ -40,7 +40,6 @@ async def review_essay(req: EssayTextRequest):
     return JSONResponse(content=result)
 
 
-# ── SECONDARY: Upload PDF essay ─────────────────────────────────────────────
 @router.post("/review-pdf")
 async def review_essay_pdf(
     file: UploadFile = File(...),
@@ -48,27 +47,65 @@ async def review_essay_pdf(
     student_profile: str = Form(...),  # JSON string
 ):
     """
-    PSEUDOCODE for PDF upload — implement after text version works.
-    1. Read uploaded PDF bytes
-    2. Extract text with pdfplumber
-    3. Call same review logic as /review
+    Upload PDF essay → extract text → analyze with GPT-4o.
     """
-    # import pdfplumber
-    # content = await file.read()
-    # with pdfplumber.open(io.BytesIO(content)) as pdf:
-    #     essay_text = "\n".join(p.extract_text() for p in pdf.pages if p.extract_text())
-    # profile = json.loads(student_profile)
-    # ... same as review_essay above
-    return {"message": "PDF review — implement after demo"}
+    # 1. Validate file type
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(400, "Only PDF files are accepted")
 
+    # 2. Extract text từ PDF
+    import pdfplumber, io
+    content = await file.read()
+    essay_text = ""
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if text:
+                essay_text += text + "\n"
 
-# ── SECONDARY: Rewrite a specific paragraph ─────────────────────────────────
+    if len(essay_text.strip()) < 100:
+        raise HTTPException(400, "Could not extract enough text from PDF (minimum 100 characters)")
+
+    # 3. Parse student_profile từ JSON string
+    import json
+    try:
+        profile = json.loads(student_profile)
+    except Exception:
+        raise HTTPException(400, "student_profile must be valid JSON")
+
+    # 4. Gọi cùng logic với /review
+    system_prompt = build_essay_prompt(essay_text, school_name, profile)
+    result = await chat_completion(
+        system_prompt=system_prompt,
+        messages=[{"role": "user", "content": "Please analyze this essay now."}],
+        json_mode=True,
+    )
+    return JSONResponse(content=result)
+
+class RewriteRequest(BaseModel):
+    original_paragraph: str
+    issue: str
+    suggestion: str
+    school_name: str
+
 @router.post("/rewrite-section")
-async def rewrite_section(body: dict):
+async def rewrite_section(req: RewriteRequest):
     """
-    PSEUDOCODE:
-    1. Receive { original_paragraph, issue, school_name }
-    2. Prompt GPT-4o to rewrite with explanation of changes
-    3. Return { rewritten, changes_made }
+    Nhận 1 đoạn văn yếu + issue + suggestion → GPT-4o rewrite lại.
     """
-    return {"message": "Section rewrite — implement after demo"}
+    if len(req.original_paragraph.strip()) < 20:
+        raise HTTPException(400, "Paragraph too short (minimum 20 characters)")
+
+    system_prompt = build_essay_rewrite_prompt(
+        original=req.original_paragraph,
+        issue=req.issue,
+        suggestion=req.suggestion,
+        school_name=req.school_name,
+    )
+
+    result = await chat_completion(
+        system_prompt=system_prompt,
+        messages=[{"role": "user", "content": "Please rewrite this paragraph now."}],
+        json_mode=True,
+    )
+    return JSONResponse(content=result)
