@@ -1,8 +1,10 @@
 import os, json
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
+load_dotenv()
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 async def chat_completion(system_prompt: str, messages: list, json_mode: bool = True) -> dict:

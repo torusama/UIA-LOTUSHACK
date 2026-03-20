@@ -36,31 +36,5 @@
       "Physics": "Look for research experience, mathematical depth",
       "Biology": "Look for lab experience, curiosity about living systems"
     }
-  },
-  "Stanford": {
-    "name": "Stanford University",
-    "acceptance_rate": 0.038,
-    "requirements": {
-      "SAT": "1500-1570+",
-      "ACT": "34-36",
-      "GPA": ">=3.9",
-      "IELTS": ">=7.0",
-      "TOEFL_IBT": ">=100"
-    },
-    "essay_criteria": [
-      "Intellectual vitality",
-      "Meaningful contribution to community",
-      "What matters to you and why",
-      "How you'll contribute to Stanford",
-      "Genuine passion and purpose"
-    ],
-    "interview_questions": [
-      "What intellectual experience has shaped you most?",
-      "How do you define community, and what's your role in yours?",
-      "What would you contribute to Stanford's campus?",
-      "Tell me about something you care about deeply.",
-      "What's a belief you hold that others might disagree with?"
-    ],
-    "major_specific_notes": {}
   }
 }

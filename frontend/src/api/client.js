@@ -34,7 +34,7 @@ export const speakQuestion = async (text) => {
     body: JSON.stringify({ text }),
   });
   const blob = await res.blob();
-  return URL.createObjectURL(blob); // returns audio URL for <audio> tag
+  return URL.createObjectURL(blob);
 };
 
 export const endInterview = (schoolName, conversationHistory) =>
@@ -43,9 +43,27 @@ export const endInterview = (schoolName, conversationHistory) =>
     conversation_history: conversationHistory,
   });
 
-// ── Profile Score (secondary) ──────────────────────────────────────────────
+// ── Profile ────────────────────────────────────────────────────────────────
 export const scoreProfile = (schoolName, studentProfile, essayScore, interviewScore) =>
   post("/profile/score", {
+    school_name: schoolName,
+    student_profile: studentProfile,
+    essay_score: essayScore,
+    interview_score: interviewScore,
+  });
+
+export const recommendSchools = (studentProfile) =>
+  post("/profile/recommend", { student_profile: studentProfile });
+
+export const matchScholarships = (schoolName, studentProfile, essayScore) =>
+  post("/profile/scholarships", {
+    school_name: schoolName,
+    student_profile: studentProfile,
+    essay_score: essayScore,
+  });
+
+export const getExecutiveSummary = (schoolName, studentProfile, essayScore, interviewScore) =>
+  post("/profile/summary", {
     school_name: schoolName,
     student_profile: studentProfile,
     essay_score: essayScore,
