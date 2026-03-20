@@ -1,0 +1,66 @@
+{
+  "MIT": {
+    "name": "Massachusetts Institute of Technology",
+    "acceptance_rate": 0.04,
+    "requirements": {
+      "SAT": "1520-1580+",
+      "ACT": "35-36+",
+      "GPA": ">=3.9 (unweighted)",
+      "IELTS": ">=7.0",
+      "TOEFL_IBT": ">=100",
+      "TOEFL_PBT": ">=577",
+      "GRE_MATH": "157-168+"
+    },
+    "essay_criteria": [
+      "Alignment with MIT mission (science & technology for society)",
+      "Initiative and self-directed learning",
+      "Collaborative and cooperative spirit",
+      "Risk-taking and resilience",
+      "Hands-on creativity and maker mindset",
+      "Intellectual vitality and curiosity",
+      "Authenticity and personality",
+      "Balance and humility",
+      "Public spiritedness"
+    ],
+    "interview_questions": [
+      "Tell me about a project where you built or created something from scratch.",
+      "Describe a time you failed. What did you learn?",
+      "How do you approach a problem you've never seen before?",
+      "What's a subject outside your major that genuinely excites you and why?",
+      "Tell me about a collaboration that challenged you.",
+      "What do you want to change about the world, and how does MIT help you do that?",
+      "Describe your most meaningful extracurricular activity and its impact."
+    ],
+    "major_specific_notes": {
+      "Computer Science": "Look for algorithmic thinking, personal projects, open source contributions",
+      "Physics": "Look for research experience, mathematical depth",
+      "Biology": "Look for lab experience, curiosity about living systems"
+    }
+  },
+  "Stanford": {
+    "name": "Stanford University",
+    "acceptance_rate": 0.038,
+    "requirements": {
+      "SAT": "1500-1570+",
+      "ACT": "34-36",
+      "GPA": ">=3.9",
+      "IELTS": ">=7.0",
+      "TOEFL_IBT": ">=100"
+    },
+    "essay_criteria": [
+      "Intellectual vitality",
+      "Meaningful contribution to community",
+      "What matters to you and why",
+      "How you'll contribute to Stanford",
+      "Genuine passion and purpose"
+    ],
+    "interview_questions": [
+      "What intellectual experience has shaped you most?",
+      "How do you define community, and what's your role in yours?",
+      "What would you contribute to Stanford's campus?",
+      "Tell me about something you care about deeply.",
+      "What's a belief you hold that others might disagree with?"
+    ],
+    "major_specific_notes": {}
+  }
+}
