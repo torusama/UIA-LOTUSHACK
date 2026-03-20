@@ -5,8 +5,8 @@ import InterviewSim from "./pages/InterviewSim";
 import Dashboard    from "./pages/Dashboard";
 
 const DEFAULT_PROFILE = {
-  name: "", gpa: "", major: "", activities: "",
-  sat: "", ielts: "", school_name: "MIT",
+  name: "", gpa: "", major: "Computer Science", activities: "", activity_categories: [], activity_details: {},
+  sat: "", ielts: "", act: "", school_name: "MIT",
 };
 
 const TABS = [
