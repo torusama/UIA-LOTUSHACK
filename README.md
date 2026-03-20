@@ -1,6 +1,7 @@
 # UniMatch AI — Hackathon Project
 
 ## Project Structure
+
 ```text
 unimatch-ai/
 ├── README.md
@@ -45,6 +46,7 @@ unimatch-ai/
 ```
 
 ## Stack
+
 - **Frontend**: React (Vite)
 - **Backend**: FastAPI (Python)
 - **AI**: OpenAI GPT-4o + Whisper | ElevenLabs (voice)
@@ -55,6 +57,7 @@ unimatch-ai/
 ## ⚡ Quick Start (both servers in 5 minutes)
 
 ### Backend
+
 ```bash
 cd backend
 cp .env.example .env        # Fill in OPENAI_API_KEY at minimum
@@ -63,22 +66,25 @@ uvicorn main:app --reload   # Runs on http://localhost:8000
 ```
 
 ### Frontend
+
 ```bash
 cd frontend
-npm install
-npm run dev                 # Runs on http://localhost:5173
+npm install -g yarn
+yarn install
+yarn dev                   # Runs on http://localhost:5173
 ```
 
 ---
 
 ## Priority Features (must demo)
 
-| # | Feature | Backend file | Frontend file |
-|---|---------|-------------|---------------|
-| 1 | Essay Analysis | `routers/essay.py` | `pages/EssayReview.jsx` |
-| 2 | Interview Simulator | `routers/interview.py` | `pages/InterviewSim.jsx` |
+| #   | Feature             | Backend file           | Frontend file            |
+| --- | ------------------- | ---------------------- | ------------------------ |
+| 1   | Essay Analysis      | `routers/essay.py`     | `pages/EssayReview.jsx`  |
+| 2   | Interview Simulator | `routers/interview.py` | `pages/InterviewSim.jsx` |
 
 ## Secondary Features (pitch as roadmap)
+
 - Profile scoring with live data → `routers/profile.py` + `services/crawl_service.py`
 - PDF essay upload → `routers/essay.py::review_essay_pdf`
 - Voice input (student speaks) → `routers/interview.py::transcribe`
@@ -89,12 +95,12 @@ npm run dev                 # Runs on http://localhost:5173
 
 ## Team Split
 
-| Person | Owns | Files |
-|--------|------|-------|
-| 1 — Frontend | React UI for Essay + Interview | `frontend/src/` |
-| 2 — Backend | FastAPI endpoints | `backend/routers/`, `backend/main.py` |
-| 3 — AI/Prompts | Prompts + school data | `backend/prompts/`, `backend/data/schools.json` |
-| 4 — Integration + Pitch | Connect FE↔BE, demo script, slides | All |
+| Person                  | Owns                               | Files                                           |
+| ----------------------- | ---------------------------------- | ----------------------------------------------- |
+| 1 — Frontend            | React UI for Essay + Interview     | `frontend/src/`                                 |
+| 2 — Backend             | FastAPI endpoints                  | `backend/routers/`, `backend/main.py`           |
+| 3 — AI/Prompts          | Prompts + school data              | `backend/prompts/`, `backend/data/schools.json` |
+| 4 — Integration + Pitch | Connect FE↔BE, demo script, slides | All                                             |
 
 ---
 
