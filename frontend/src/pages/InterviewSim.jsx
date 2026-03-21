@@ -22,6 +22,7 @@ export default function InterviewSim({ profile, onReport }) {
   const [isTyping, setIsTyping]             = useState(false);
   const [userTypingText, setUserTypingText] = useState("");
   const [isUserTyping, setIsUserTyping]     = useState(false);
+  const [isAISpeaking, setIsAISpeaking]     = useState(false);
 
   const audioRef      = useRef(null);
   const bottomRef     = useRef(null);
@@ -33,7 +34,6 @@ export default function InterviewSim({ profile, onReport }) {
   const typingRef     = useRef(null);
   const userTypingRef = useRef(null);
 
-  // Sync historyRef mỗi khi history thay đổi
   useEffect(() => { historyRef.current = history; }, [history]);
 
   useEffect(() => {
@@ -92,11 +92,9 @@ export default function InterviewSim({ profile, onReport }) {
           return;
         }
         if (data.analysis) setSpeechAnalysis(data.analysis);
-
-        // Lấy history tại thời điểm này từ ref — luôn mới nhất
         const currentHistory = historyRef.current;
         startUserTypewriter(data.transcript);
-        await new Promise(r => setTimeout(r, data.transcript.length * 30 + 200));
+        // Gửi ngay — không chờ typewriter
         await sendTurn(currentHistory, data.transcript);
       };
       mediaRecRef.current = mr;
@@ -114,6 +112,7 @@ export default function InterviewSim({ profile, onReport }) {
   }
 
   async function startInterview() {
+    console.log("START");
     setPhase("active");
     setHistory([]);
     historyRef.current = [];
@@ -134,14 +133,14 @@ export default function InterviewSim({ profile, onReport }) {
         return prev - 1;
       });
     }, 1000);
-    // Gọi với mảng rỗng trực tiếp — không dùng historyRef ở đây
     await sendTurn([], "");
   }
 
-  // sendTurn nhận currentHistory làm tham số — không đọc từ ref/state
   async function sendTurn(currentHistory, answer) {
+    console.log("sendTurn called, answer:", answer);
     setLoading(true);
     try {
+      console.log("Calling interviewAsk...");
       const data = await interviewAsk(
         profile.school_name || "MIT",
         profile,
@@ -150,12 +149,13 @@ export default function InterviewSim({ profile, onReport }) {
       );
 
       const questionText = data.question || "";
+      console.log("API data:", data);
+
       const aiMsg = { role: "assistant", content: questionText };
       const newHistory = answer.trim()
         ? [...currentHistory, { role: "user", content: answer }, aiMsg]
         : [...currentHistory, aiMsg];
 
-      // Cập nhật cả state lẫn ref cùng lúc
       setHistory(newHistory);
       historyRef.current = newHistory;
 
@@ -174,10 +174,14 @@ export default function InterviewSim({ profile, onReport }) {
             const bytes = Uint8Array.from(atob(data.audio_base64), c => c.charCodeAt(0));
             const blob  = new Blob([bytes], { type: "audio/mpeg" });
             audioRef.current.src = URL.createObjectURL(blob);
+            setIsAISpeaking(true);  
+            audioRef.current.onended = () => setIsAISpeaking(false);
             audioRef.current.play().catch((err) => console.error("❌ Audio play failed:", err));
           } else {
             const url = await speakQuestion(questionText);
             audioRef.current.src = url;
+            setIsAISpeaking(true);                                    // ← thêm
+            audioRef.current.onended = () => setIsAISpeaking(false);
             audioRef.current.play().catch((err) => console.error("❌ Audio play failed:", err));
           }
         } catch (err) {
@@ -185,12 +189,12 @@ export default function InterviewSim({ profile, onReport }) {
         }
       }
 
-      if (data.interview_phase === "closing" || turnCountRef.current >= MAX_TURNS) {
+      if (turnCountRef.current >= MAX_TURNS) {
         setPhase("ended");
         await handleEnd();
       }
     } catch (e) {
-      console.error(e);
+      console.error("sendTurn error:", e.message, e);
     } finally {
       setLoading(false);
     }
@@ -214,7 +218,6 @@ export default function InterviewSim({ profile, onReport }) {
 
   return (
     <section>
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>Mock Interview — {profile.school_name || "MIT"}</h2>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#6b7280", marginLeft: "auto" }}>
@@ -228,7 +231,6 @@ export default function InterviewSim({ profile, onReport }) {
         )}
       </div>
 
-      {/* Timer */}
       {phase === "active" && (
         <div style={{ fontSize: 20, fontWeight: 700, color: timeLeft < 60 ? "red" : "#374151", marginBottom: 12 }}>
           ⏱ {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}
@@ -237,7 +239,6 @@ export default function InterviewSim({ profile, onReport }) {
 
       <audio ref={audioRef} style={{ display: "none" }} />
 
-      {/* Chat window */}
       <div style={{
         minHeight: 320, maxHeight: 420, overflowY: "auto",
         border: "1px solid #e5e7eb", borderRadius: 12,
@@ -255,13 +256,12 @@ export default function InterviewSim({ profile, onReport }) {
             <ChatBubble
               key={i}
               role={msg.role}
-              content={isLastAI && isTyping ? typingText : msg.content}
+              content={isLastAI && isTyping ? (typingText || "...") : msg.content}
               isTyping={isLastAI && isTyping}
             />
           );
         })}
 
-        {/* Bubble typewriter của user */}
         {isUserTyping && userTypingText && (
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
             <div style={{
@@ -287,21 +287,17 @@ export default function InterviewSim({ profile, onReport }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Controls: idle */}
       {phase === "idle" && (
         <div style={{ display: "flex", justifyContent: "center" }}>
           <Button onClick={startInterview}>Bắt đầu phỏng vấn</Button>
         </div>
       )}
 
-      {/* Controls: active — chỉ có mic ở giữa */}
       {phase === "active" && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-
-          {/* Nút mic lớn ở giữa */}
           <button
             onClick={isRecording ? stopRecording : startRecording}
-            disabled={loading || isTyping}
+            disabled={loading || isTyping || isAISpeaking}
             style={{
               width: 72, height: 72, borderRadius: "50%",
               background: isRecording ? "#dc2626" : "#1e40af",
@@ -310,15 +306,13 @@ export default function InterviewSim({ profile, onReport }) {
               boxShadow: isRecording
                 ? "0 0 0 10px rgba(220,38,38,0.2), 0 0 0 20px rgba(220,38,38,0.08)"
                 : "0 4px 14px rgba(30,64,175,0.35)",
-              opacity: (loading || isTyping) ? 0.5 : 1,
+              opacity: (loading || isTyping || isAISpeaking) ? 0.5 : 1,
               transition: "all 0.2s",
             }}
-            title={isTyping ? "Chờ interviewer nói xong..." : isRecording ? "Dừng ghi âm" : "Nhấn để trả lời"}
           >
             {isTyping ? "🔊" : isRecording ? "⏹" : "🎤"}
           </button>
 
-          {/* Trạng thái bên dưới mic */}
           {isTyping && (
             <div style={{ color: "#1e40af", fontSize: 13, textAlign: "center" }}>
               🔊 Interviewer đang nói... chờ xong rồi trả lời
@@ -334,8 +328,12 @@ export default function InterviewSim({ profile, onReport }) {
               Nhấn 🎤 để trả lời
             </div>
           )}
+          {loading && !isTyping && (
+            <div style={{ color: "#6b7280", fontSize: 13, textAlign: "center" }}>
+              ⏳ Đang xử lý...
+            </div>
+          )}
 
-          {/* Mic warning */}
           {micWarning && (
             <div style={{
               background: "#fef2f2", border: "1px solid #fca5a5",
@@ -357,15 +355,13 @@ export default function InterviewSim({ profile, onReport }) {
             </div>
           )}
 
-          {/* Nút kết thúc nhỏ */}
           <button
             onClick={handleEnd}
             disabled={loading}
             style={{
               padding: "6px 20px", background: "transparent",
               color: "#9ca3af", border: "1px solid #e5e7eb",
-              borderRadius: 20, fontSize: 12, cursor: "pointer",
-              marginTop: 4,
+              borderRadius: 20, fontSize: 12, cursor: "pointer", marginTop: 4,
             }}
           >
             Kết thúc phỏng vấn
