@@ -20,8 +20,7 @@ export default function InterviewSim({ profile, onReport }) {
   const [micWarning, setMicWarning]         = useState("");
   const [typingText, setTypingText]         = useState("");
   const [isTyping, setIsTyping]             = useState(false);
-  const [userTypingText, setUserTypingText] = useState("");
-  const [isUserTyping, setIsUserTyping]     = useState(false);
+  const [pendingUserText, setPendingUserText] = useState(""); // text chờ hiển thị
   const [isAISpeaking, setIsAISpeaking]     = useState(false);
 
   const audioRef      = useRef(null);
@@ -32,13 +31,12 @@ export default function InterviewSim({ profile, onReport }) {
   const historyRef    = useRef([]);
   const turnCountRef  = useRef(0);
   const typingRef     = useRef(null);
-  const userTypingRef = useRef(null);
 
   useEffect(() => { historyRef.current = history; }, [history]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [history, feedback, speechAnalysis, typingText, userTypingText]);
+  }, [history, feedback, speechAnalysis, typingText, pendingUserText]);
 
   function startTypewriter(text) {
     clearInterval(typingRef.current);
@@ -57,22 +55,6 @@ export default function InterviewSim({ profile, onReport }) {
     }, delay);
   }
 
-  function startUserTypewriter(text) {
-    clearInterval(userTypingRef.current);
-    setUserTypingText("");
-    setIsUserTyping(true);
-    let i = 0;
-    userTypingRef.current = setInterval(() => {
-      i++;
-      setUserTypingText(text.slice(0, i));
-      if (i >= text.length) {
-        clearInterval(userTypingRef.current);
-        setIsUserTyping(false);
-        setUserTypingText("");
-      }
-    }, 30);
-  }
-
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -87,14 +69,16 @@ export default function InterviewSim({ profile, onReport }) {
         }
         setMicWarning("");
         const data = await transcribeAudio(blob);
-        if (!data.transcript?.trim()) {
-          setMicWarning("⚠️ Could not recognize speech. Move closer to the mic and try again.");
+        // Kiểm tra ngôn ngữ
+        if (data.wrong_language) {
+          const lang = data.detected_language || "non-English";
+          setMicWarning(`⚠️ You spoke in ${lang}. This is an English interview — please answer in English.`);
           return;
         }
         if (data.analysis) setSpeechAnalysis(data.analysis);
         const currentHistory = historyRef.current;
-        startUserTypewriter(data.transcript);
-        // Gửi ngay — không chờ typewriter
+        // Hiện text người dùng vừa nói — dùng pendingUserText thay vì typewriter riêng
+        setPendingUserText(data.transcript);
         await sendTurn(currentHistory, data.transcript);
       };
       mediaRecRef.current = mr;
@@ -111,9 +95,8 @@ export default function InterviewSim({ profile, onReport }) {
     setIsRecording(false);
   }
 
-  async function startInterview() {
-    console.log("START");
-    setPhase("active");
+  function resetAll() {
+    setPhase("idle");
     setHistory([]);
     historyRef.current = [];
     setTurnCount(0);
@@ -124,9 +107,20 @@ export default function InterviewSim({ profile, onReport }) {
     setMicWarning("");
     setTypingText("");
     setIsTyping(false);
-    setUserTypingText("");
-    setIsUserTyping(false);
+    setPendingUserText("");
+    setIsAISpeaking(false);
     setTimeLeft(9 * 60);
+    clearInterval(timerRef.current);
+    clearInterval(typingRef.current);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+    }
+  }
+
+  async function startInterview() {
+    resetAll();
+    setPhase("active");
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) { clearInterval(timerRef.current); handleEnd(); return 0; }
@@ -137,10 +131,8 @@ export default function InterviewSim({ profile, onReport }) {
   }
 
   async function sendTurn(currentHistory, answer) {
-    console.log("sendTurn called, answer:", answer);
     setLoading(true);
     try {
-      console.log("Calling interviewAsk...");
       const data = await interviewAsk(
         profile.school_name || "MIT",
         profile,
@@ -149,17 +141,17 @@ export default function InterviewSim({ profile, onReport }) {
       );
 
       const questionText = data.question || "";
-      console.log("API data:", data);
 
       const aiMsg = { role: "assistant", content: questionText };
       const newHistory = answer.trim()
         ? [...currentHistory, { role: "user", content: answer }, aiMsg]
         : [...currentHistory, aiMsg];
 
+      // Clear pending text TRƯỚC khi setHistory để tránh flicker
+      setPendingUserText("");
       setHistory(newHistory);
       historyRef.current = newHistory;
-      setUserTypingText("");     
-      setIsUserTyping(false); 
+
       setTurnCount((n) => { turnCountRef.current = n + 1; return n + 1; });
       setFeedback(
         data.feedback_on_previous
@@ -175,13 +167,13 @@ export default function InterviewSim({ profile, onReport }) {
             const bytes = Uint8Array.from(atob(data.audio_base64), c => c.charCodeAt(0));
             const blob  = new Blob([bytes], { type: "audio/mpeg" });
             audioRef.current.src = URL.createObjectURL(blob);
-            setIsAISpeaking(true);  
+            setIsAISpeaking(true);
             audioRef.current.onended = () => setIsAISpeaking(false);
             audioRef.current.play().catch((err) => console.error("❌ Audio play failed:", err));
           } else {
             const url = await speakQuestion(questionText);
             audioRef.current.src = url;
-            setIsAISpeaking(true);                                    // ← thêm
+            setIsAISpeaking(true);
             audioRef.current.onended = () => setIsAISpeaking(false);
             audioRef.current.play().catch((err) => console.error("❌ Audio play failed:", err));
           }
@@ -196,6 +188,7 @@ export default function InterviewSim({ profile, onReport }) {
       }
     } catch (e) {
       console.error("sendTurn error:", e.message, e);
+      setPendingUserText("");
     } finally {
       setLoading(false);
     }
@@ -204,6 +197,12 @@ export default function InterviewSim({ profile, onReport }) {
   async function handleEnd() {
     clearInterval(timerRef.current);
     clearInterval(typingRef.current);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+    }
+    setIsTyping(false);
+    setIsAISpeaking(false);
     setPhase("ended");
     setLoading(true);
     try {
@@ -227,7 +226,7 @@ export default function InterviewSim({ profile, onReport }) {
         </label>
         {phase === "active" && (
           <Tag color="#dcfce7" textColor="#15803d">
-            Câu {Math.min(turnCount, MAX_TURNS)}/{MAX_TURNS}
+            Turn {Math.min(turnCount, MAX_TURNS)}/{MAX_TURNS}
           </Tag>
         )}
       </div>
@@ -247,7 +246,7 @@ export default function InterviewSim({ profile, onReport }) {
       }}>
         {phase === "idle" && (
           <p style={{ color: "#9ca3af", textAlign: "center", marginTop: 100 }}>
-            Press "Start" to begin your mock interview
+            Press "Start Interview" to begin your mock interview
           </p>
         )}
 
@@ -263,19 +262,15 @@ export default function InterviewSim({ profile, onReport }) {
           );
         })}
 
-        {isUserTyping && userTypingText && (
+        {/* Bubble tạm cho câu user vừa nói — hiện khi đang chờ API */}
+        {pendingUserText && (
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
             <div style={{
               maxWidth: "75%", background: "#e5e7eb", color: "#111827",
               borderRadius: "12px 12px 0 12px",
-              padding: "10px 14px", fontSize: 14, lineHeight: 1.6,
+              padding: "10px 14px", fontSize: 14, lineHeight: 1.6, opacity: 0.7,
             }}>
-              {userTypingText}
-              <span style={{
-                display: "inline-block", width: 2, height: 14,
-                background: "#111827", marginLeft: 2, verticalAlign: "middle",
-                animation: "blink 0.7s step-end infinite",
-              }} />
+              {pendingUserText}
             </div>
           </div>
         )}
@@ -316,7 +311,7 @@ export default function InterviewSim({ profile, onReport }) {
               width: 72, height: 72, borderRadius: "50%",
               background: isRecording ? "#dc2626" : "#1e40af",
               border: "none", color: "white", fontSize: 28,
-              cursor: (loading || isTyping) ? "not-allowed" : "pointer",
+              cursor: (loading || isTyping || isAISpeaking) ? "not-allowed" : "pointer",
               boxShadow: isRecording
                 ? "0 0 0 10px rgba(220,38,38,0.2), 0 0 0 20px rgba(220,38,38,0.08)"
                 : "0 4px 14px rgba(30,64,175,0.35)",
@@ -324,20 +319,25 @@ export default function InterviewSim({ profile, onReport }) {
               transition: "all 0.2s",
             }}
           >
-            {isTyping ? "🔊" : isRecording ? "⏹" : "🎤"}
+            {isAISpeaking ? "🔊" : isRecording ? "⏹" : "🎤"}
           </button>
 
-          {isTyping && (
+          {isAISpeaking && (
             <div style={{ color: "#1e40af", fontSize: 13, textAlign: "center" }}>
               🔊 Interviewer is speaking... wait before answering
             </div>
           )}
-          {isRecording && !isTyping && (
+          {isTyping && !isAISpeaking && (
+            <div style={{ color: "#1e40af", fontSize: 13, textAlign: "center" }}>
+              🔊 Interviewer is speaking...
+            </div>
+          )}
+          {isRecording && (
             <div style={{ color: "#dc2626", fontSize: 13, textAlign: "center" }}>
               ● Recording... press ⏹ to send
             </div>
           )}
-          {!isRecording && !isTyping && !loading && (
+          {!isRecording && !isTyping && !isAISpeaking && !loading && (
             <div style={{ color: "#9ca3af", fontSize: 13, textAlign: "center" }}>
               Press 🎤 to answer
             </div>
@@ -370,17 +370,7 @@ export default function InterviewSim({ profile, onReport }) {
           )}
 
           <button
-            onClick={() => {
-              if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.src = "";
-              }
-              clearInterval(typingRef.current);
-              setIsTyping(false);
-              setTypingText("");
-              setIsAISpeaking(false);
-              handleEnd();
-            }}
+            onClick={handleEnd}
             disabled={loading}
             style={{
               padding: "6px 20px", background: "transparent",
@@ -393,7 +383,9 @@ export default function InterviewSim({ profile, onReport }) {
         </div>
       )}
 
-      {phase === "ended" && report && <InterviewReport report={report} />}
+      {phase === "ended" && report && (
+        <InterviewReport report={report} onRetry={startInterview} />
+      )}
     </section>
   );
 }
@@ -480,7 +472,7 @@ function SpeechAnalysisCard({ analysis }) {
           <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>⚠️ Pronunciation issues:</div>
           {analysis.pronunciation_issues.map((p, i) => (
             <div key={i} style={{ background: "#fff7ed", borderLeft: "3px solid #f97316", borderRadius: "0 6px 6px 0", padding: "5px 10px", marginBottom: 4 }}>
-              <strong>"{p.word}"</strong> — {p.issue}. Thử: <em>{p.suggestion}</em>
+              <strong>"{p.word}"</strong> — {p.issue}. Try: <em>{p.suggestion}</em>
             </div>
           ))}
         </div>
@@ -501,7 +493,7 @@ function SpeechAnalysisCard({ analysis }) {
   );
 }
 
-function InterviewReport({ report }) {
+function InterviewReport({ report, onRetry }) {
   const dims = report.dimension_scores || {};
   const signalMap = {
     strong:   { bg: "#dcfce7", text: "#15803d" },
@@ -555,13 +547,36 @@ function InterviewReport({ report }) {
         </div>
       )}
       {(report.next_steps || []).length > 0 && (
-        <div>
+        <div style={{ marginBottom: 20 }}>
           <strong style={{ fontSize: 14 }}>🚀 Next steps:</strong>
           <ul style={{ paddingLeft: 20, marginTop: 6 }}>
             {report.next_steps.map((s, i) => <li key={i} style={{ marginBottom: 6, fontSize: 14 }}>{s}</li>)}
           </ul>
         </div>
       )}
+
+      {/* Nút phỏng vấn lại */}
+      <button
+        onClick={onRetry}
+        style={{
+          padding: "12px 28px",
+          background: "#1e40af",
+          color: "white",
+          border: "none",
+          borderRadius: 10,
+          fontSize: 15,
+          fontWeight: 600,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          transition: "background 0.2s",
+        }}
+        onMouseEnter={e => e.target.style.background = "#1d4ed8"}
+        onMouseLeave={e => e.target.style.background = "#1e40af"}
+      >
+        🔄 Try Again
+      </button>
     </div>
   );
 }

@@ -107,16 +107,55 @@ async def transcribe_student_answer(audio: UploadFile = File(...)):
         # Dùng GPT-4o Audio — vừa transcribe vừa phân tích
         from services.openai_service import analyze_speech
         analysis = await analyze_speech(audio_bytes, filename=audio.filename)
+        transcript = analysis.get("transcript", "")
+        detected_lang = analysis.get("detected_language", "english").lower()
+
+        # Nếu không phải tiếng Anh → báo lỗi ngay
+        if detected_lang not in ("english", "en"):
+            return JSONResponse({
+                "transcript": "",
+                "analysis": analysis,
+                "wrong_language": True,
+                "detected_language": detected_lang,
+            })
+
         return JSONResponse({
-            "transcript": analysis.get("transcript", ""),
+            "transcript": transcript,
             "analysis": analysis,
+            "wrong_language": False,
+            "detected_language": detected_lang,
         })
     except Exception as e:
-        # Fallback về Whisper nếu GPT-4o Audio lỗi
         print(f"[GPT-4o Audio error, falling back to Whisper] {e}")
-        from services.openai_service import transcribe_audio
-        transcript = await transcribe_audio(audio_bytes, filename=audio.filename)
-        return JSONResponse({"transcript": transcript, "analysis": None})
+        import io
+        from openai import AsyncOpenAI
+        import os
+        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        audio_file = io.BytesIO(audio_bytes)
+        audio_file.name = audio.filename or "answer.webm"
+        transcript_obj = await client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file,
+            response_format="verbose_json",
+            # KHÔNG set language — để Whisper tự detect
+        )
+        detected = getattr(transcript_obj, "language", "english").lower()
+        transcript = transcript_obj.text or ""
+
+        if detected not in ("english", "en"):
+            return JSONResponse({
+                "transcript": "",
+                "analysis": None,
+                "wrong_language": True,
+                "detected_language": detected,
+            })
+
+        return JSONResponse({
+            "transcript": transcript,
+            "analysis": None,
+            "wrong_language": False,
+            "detected_language": detected,
+        })
 
 # ── SECONDARY: Full interview report ────────────────────────────────────────
 @router.post("/report")
