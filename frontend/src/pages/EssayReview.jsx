@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { reviewEssay, reviewEssayPdf } from "../api/client";
-import { ScorePill, scoreColor } from "../components/ScoreDisplay";
+import { ScorePill, scoreColor, scoreLabel } from "../components/ScoreDisplay";
 import { Button } from "../components/Button";
 
 export default function EssayReview({ profile, onResult }) {
-  const [mode, setMode]           = useState("text"); // "text" | "pdf"
+  const [mode, setMode]           = useState("text");
   const [essayText, setEssayText] = useState("");
   const [pdfFile, setPdfFile]     = useState(null);
   const [loading, setLoading]     = useState(false);
@@ -62,7 +62,7 @@ export default function EssayReview({ profile, onResult }) {
         ))}
       </div>
 
-      {/* Input tương ứng */}
+      {/* Input */}
       {mode === "text" ? (
         <textarea
           rows={12}
@@ -73,17 +73,10 @@ export default function EssayReview({ profile, onResult }) {
         />
       ) : (
         <div
-          style={{
-            border: "2px dashed #93c5fd", borderRadius: 10, padding: 32,
-            textAlign: "center", background: "#eff6ff", cursor: "pointer"
-          }}
+          style={{ border: "2px dashed #93c5fd", borderRadius: 10, padding: 32, textAlign: "center", background: "#eff6ff", cursor: "pointer" }}
           onClick={() => document.getElementById("pdf-input").click()}
         >
-          <input
-            id="pdf-input" type="file" accept=".pdf"
-            style={{ display: "none" }}
-            onChange={(e) => setPdfFile(e.target.files[0])}
-          />
+          <input id="pdf-input" type="file" accept=".pdf" style={{ display: "none" }} onChange={(e) => setPdfFile(e.target.files[0])} />
           {pdfFile
             ? <p style={{ color: "#1d4ed8", fontWeight: 600 }}>📄 {pdfFile.name}</p>
             : <>
@@ -99,9 +92,7 @@ export default function EssayReview({ profile, onResult }) {
         <Button onClick={handleSubmit} disabled={loading}>
           {loading ? "Đang phân tích..." : "Phân tích Essay"}
         </Button>
-        {mode === "text" && (
-          <span style={{ color: "#9ca3af", fontSize: 13 }}>{essayText.length} ký tự</span>
-        )}
+        {mode === "text" && <span style={{ color: "#9ca3af", fontSize: 13 }}>{essayText.length} ký tự</span>}
       </div>
 
       {error && <p style={{ color: "#dc2626", marginTop: 8, fontSize: 14 }}>{error}</p>}
@@ -117,6 +108,8 @@ function EssayResult({ result }) {
 
   return (
     <div style={{ marginTop: 32 }}>
+
+      {/* 1. Điểm tổng quan — label thay số */}
       <h3 style={{ marginBottom: 12 }}>Điểm tổng quan</h3>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
         {Object.entries(scores).map(([k, v]) => (
@@ -124,42 +117,64 @@ function EssayResult({ result }) {
         ))}
       </div>
 
+      {/* 2. Tóm tắt */}
       {result.summary && (
         <div style={{ background: "#eff6ff", borderRadius: 10, padding: 14, marginBottom: 20, fontSize: 14 }}>
           <strong>Tóm tắt:</strong> {result.summary}
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+      {/* 3. Câu cần sửa ← lên trên */}
+      {suggestions.length > 0 && (
+        <>
+          <h3 style={{ margin: "0 0 12px" }}>✏️ Câu cần sửa + gợi ý thay thế</h3>
+          {suggestions.map((s, i) => (
+            <div key={i} style={{ background: "#fef9c3", borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 13 }}>
+              <div style={{
+                fontStyle: "italic", color: "#78350f", marginBottom: 8,
+                padding: "8px 12px", background: "#fde68a", borderRadius: 6,
+                borderLeft: "3px solid #f59e0b"
+              }}>
+                ❝ {s.quote} ❞
+              </div>
+              <p style={{ marginBottom: 6 }}>
+                <strong style={{ color: "#dc2626" }}>⚠️ Vấn đề:</strong> {s.issue}
+              </p>
+              <p style={{ color: "#15803d" }}>
+                <strong>✅ Gợi ý:</strong> {s.suggestion}
+              </p>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* 4. Điểm mạnh / Điểm yếu */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, margin: "20px 0" }}>
         <Card bg="#f0fdf4" title="✅ Điểm mạnh" titleColor="#15803d" items={result.strengths} />
         <Card bg="#fff7ed" title="⚠️ Cần cải thiện" titleColor="#c2410c" items={result.weaknesses} />
       </div>
 
+      {/* 5. Rubric chi tiết */}
       {criteria.length > 0 && (
         <>
-          <h3 style={{ marginBottom: 12 }}>Rubric chi tiết</h3>
+          <h3 style={{ marginBottom: 12 }}>📋 Đánh giá chi tiết theo rubric</h3>
           {criteria.map((c, i) => (
             <div key={i} style={{ borderLeft: `4px solid ${scoreColor(c.score)}`, paddingLeft: 14, marginBottom: 14 }}>
               <strong>{c.criterion}</strong>
-              <span style={{ marginLeft: 8, color: scoreColor(c.score), fontWeight: 600 }}>{c.score}/10</span>
+              <span style={{
+                marginLeft: 8, fontSize: 12, fontWeight: 600,
+                color: scoreLabel(c.score).color,
+                background: scoreLabel(c.score).bg,
+                padding: "2px 8px", borderRadius: 99,
+              }}>
+                {scoreLabel(c.score).text}
+              </span>
               <p style={{ margin: "4px 0 0", color: "#4b5563", fontSize: 13 }}>{c.comment}</p>
             </div>
           ))}
         </>
       )}
 
-      {suggestions.length > 0 && (
-        <>
-          <h3 style={{ margin: "24px 0 12px" }}>Gợi ý sửa cụ thể</h3>
-          {suggestions.map((s, i) => (
-            <div key={i} style={{ background: "#fef9c3", borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 13 }}>
-              <p style={{ fontStyle: "italic", color: "#78350f", marginBottom: 6 }}>"{s.quote}"</p>
-              <p style={{ marginBottom: 4 }}><strong>Vấn đề:</strong> {s.issue}</p>
-              <p><strong>Gợi ý:</strong> {s.suggestion}</p>
-            </div>
-          ))}
-        </>
-      )}
     </div>
   );
 }
