@@ -1130,7 +1130,7 @@ export default function ReadinessDashboard({ result = MOCK_RESULT }) {
           score={essay.score}
           max={essay.max}
           theme="amber"
-          headerBadge={`${essay.score} / ${essay.max}`}
+          headerBadge={barRating(Math.round((essay.score / essay.max) * 100))}
         >
           {essay.criteria.map((c, i) => {
             const r = criteriaRating(c.score);
@@ -1172,7 +1172,9 @@ export default function ReadinessDashboard({ result = MOCK_RESULT }) {
           score={interview.score}
           max={interview.max}
           theme="pink"
-          headerBadge={`${interview.score} / ${interview.max}`}
+          headerBadge={barRating(
+            Math.round((interview.score / interview.max) * 100),
+          )}
         >
           {interview.criteria.map((c, i) => {
             const r = criteriaRating(c.score);
