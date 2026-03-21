@@ -77,7 +77,8 @@ async def interview_ask(req: InterviewTurnRequest):
             if not relevance_check.get("is_relevant", True):
                 # Trả về ngay — báo off-topic mà không cần gọi interviewer
                 return JSONResponse(content={
-                    "question": f"That doesn't seem to address my question. Let me ask again — {last_ai_question}",
+                    "question": last_ai_question,
+                    "feedback_on_previous": f"That didn't quite address my question. {relevance_check.get('reason', '')} Let's try again.",
                     "feedback_on_previous": f"Your answer didn't quite address what I asked. {relevance_check.get('reason', '')}",
                     "score_on_previous": {"authenticity": 1, "depth": 1, "school_fit": 1},
                     "interview_phase": "middle",
