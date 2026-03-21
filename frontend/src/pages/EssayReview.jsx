@@ -11,134 +11,240 @@ const SCORE_LABELS = {
 
 function scoreTag(score, max = 10) {
   const pct = score / max;
-  if (pct >= 0.8) return { text: "Excellent", color: "#065f46", bg: "#ecfdf5", bar: "#10b981" };
-  if (pct >= 0.6) return { text: "Good",      color: "#92400e", bg: "#fffbeb", bar: "#f59e0b" };
-  if (pct >= 0.4) return { text: "Average",   color: "#9a3412", bg: "#fff7ed", bar: "#f97316" };
-  return               { text: "Needs Work",  color: "#991b1b", bg: "#fef2f2", bar: "#ef4444" };
+  if (pct >= 0.8) return { text: "Excellent",  color: "#065f46", bg: "#ecfdf5", bar: "#10b981" };
+  if (pct >= 0.6) return { text: "Good",        color: "#92400e", bg: "#fffbeb", bar: "#f59e0b" };
+  if (pct >= 0.4) return { text: "Average",     color: "#9a3412", bg: "#fff7ed", bar: "#f97316" };
+  return               { text: "Needs Work",   color: "#991b1b", bg: "#fef2f2", bar: "#ef4444" };
+}
+
+/**
+ * Clean raw PDF text:
+ * - Collapse single newlines (PDF line-wrap) → space
+ * - Keep double newlines as paragraph breaks
+ */
+function cleanPdfText(raw) {
+  if (!raw) return "";
+  return raw
+    .replace(/\r\n/g, "\n")
+    .replace(/([^\n])\n([^\n])/g, "$1 $2")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/^ +| +$/gm, "")
+    .trim();
+}
+
+/**
+ * Same but protects @@highlight@@ markers from being mangled.
+ */
+function cleanHighlightedText(raw) {
+  if (!raw) return "";
+  const placeholders = [];
+  const protected_ = raw.replace(/@@[^@]+@@/g, (match) => {
+    placeholders.push(match);
+    return `\x00HL${placeholders.length - 1}\x00`;
+  });
+  const cleaned = cleanPdfText(protected_);
+  return cleaned.replace(/\x00HL(\d+)\x00/g, (_, i) => placeholders[+i]);
+}
+
+/**
+ * Split text into paragraphs.
+ * - If the text already has \n\n, use those.
+ * - Otherwise auto-split: every ~4 sentences, break at a sentence boundary.
+ */
+function splitIntoParagraphs(text) {
+  // If there are already paragraph breaks, use them
+  if (text.includes("\n\n")) {
+    return text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+  }
+
+  // Auto-split: split on sentence-ending punctuation followed by space + capital letter
+  // Group into chunks of ~4 sentences
+  const sentenceBreaks = [];
+  const re = /([.!?]["'»]?)\s+(?=[A-Z])/g;
+  let match;
+  while ((match = re.exec(text)) !== null) {
+    sentenceBreaks.push(match.index + match[1].length);
+  }
+
+  if (sentenceBreaks.length === 0) return [text];
+
+  const SENTENCES_PER_PARA = 4;
+  const paragraphs = [];
+  let start = 0;
+  let sentCount = 0;
+
+  for (let i = 0; i < sentenceBreaks.length; i++) {
+    sentCount++;
+    if (sentCount >= SENTENCES_PER_PARA) {
+      const breakPos = sentenceBreaks[i];
+      paragraphs.push(text.slice(start, breakPos).trim());
+      start = breakPos;
+      // skip leading space
+      while (start < text.length && text[start] === " ") start++;
+      sentCount = 0;
+    }
+  }
+  // Push the remaining text
+  if (start < text.length) {
+    paragraphs.push(text.slice(start).trim());
+  }
+
+  return paragraphs.filter(Boolean);
 }
 
 const css = `
-  .essay-wrap * { box-sizing: border-box; }
+  .ew * { box-sizing: border-box; }
 
-  /* Sliding pill tab switcher */
-  .tab-switcher {
-    display: inline-flex; position: relative;
-    background: #f3f4f6; border-radius: 10px; padding: 4px; gap: 0;
+  .tab-sw { display:inline-flex; position:relative; background:#f3f4f6; border-radius:10px; padding:4px; }
+  .tab-sl {
+    position:absolute; top:4px; bottom:4px; width:calc(50% - 4px);
+    background:white; border-radius:7px; box-shadow:0 1px 4px rgba(0,0,0,.1);
+    transition:transform .25s cubic-bezier(.4,0,.2,1);
   }
-  .tab-slider {
-    position: absolute; top: 4px; bottom: 4px;
-    width: calc(50% - 4px);
-    background: white; border-radius: 7px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-    transition: transform 0.25s cubic-bezier(.4,0,.2,1);
+  .tab-sl.r { transform:translateX(100%); }
+  .tab-b {
+    position:relative; z-index:1; padding:9px 28px; font-size:13px;
+    font-weight:500; border:none; background:none; cursor:pointer;
+    color:#9ca3af; border-radius:7px; transition:color .25s;
+    white-space:nowrap; font-family:inherit;
   }
-  .tab-slider.right { transform: translateX(100%); }
-  .tab-btn {
-    position: relative; z-index: 1;
-    padding: 9px 28px; font-size: 13px; font-weight: 500;
-    border: none; background: none; cursor: pointer;
-    color: #9ca3af; border-radius: 7px;
-    transition: color 0.25s; white-space: nowrap; font-family: inherit;
-  }
-  .tab-btn.active { color: #111827; font-weight: 600; }
+  .tab-b.on { color:#111827; font-weight:600; }
 
-  /* Textarea */
-  .essay-ta {
-    width: 100%; min-height: 220px; padding: 16px 18px;
-    border: 1.5px solid #e5e7eb; border-radius: 10px;
-    font-size: 14px; line-height: 1.75; resize: vertical;
-    background: white; outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    font-family: inherit; color: #111827;
+  .esstxt {
+    width:100%; min-height:220px; padding:16px 18px;
+    border:1.5px solid #e5e7eb; border-radius:10px;
+    font-size:14px; line-height:1.75; resize:vertical;
+    background:white; outline:none; font-family:inherit; color:#111827;
+    transition:border-color .2s, box-shadow .2s;
   }
-  .essay-ta:focus {
-    border-color: #6b7280;
-    box-shadow: 0 0 0 3px rgba(107,114,128,0.08);
-  }
-  .essay-ta::placeholder { color: #d1d5db; }
+  .esstxt:focus { border-color:#6b7280; box-shadow:0 0 0 3px rgba(107,114,128,.08); }
+  .esstxt::placeholder { color:#d1d5db; }
 
-  /* Content fade transition */
-  .panel-content {
-    animation: fadeSlideIn 0.2s ease;
+  .dz {
+    border:1.5px dashed #d1d5db; border-radius:10px; padding:52px 24px;
+    text-align:center; cursor:pointer; background:white;
+    transition:border-color .2s, background .2s, box-shadow .2s;
   }
-  @keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  .dz:hover { border-color:#6b7280; background:#fafafa; box-shadow:0 0 0 3px rgba(107,114,128,.06); }
+  .dz.has { border-style:solid; border-color:#374151; }
 
-  /* Drop zone */
-  .drop-zone {
-    border: 1.5px dashed #d1d5db; border-radius: 10px;
-    padding: 52px 24px; text-align: center; cursor: pointer;
-    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
-    background: white;
+  .abtn {
+    background:#111827; color:white; padding:12px 32px; border:none;
+    border-radius:8px; font-size:13px; font-weight:600; letter-spacing:.05em;
+    cursor:pointer; font-family:inherit;
+    transition:background .2s, transform .12s, box-shadow .2s;
   }
-  .drop-zone:hover {
-    border-color: #6b7280; background: #fafafa;
-    box-shadow: 0 0 0 3px rgba(107,114,128,0.06);
-  }
-  .drop-zone.filled { border-style: solid; border-color: #374151; }
+  .abtn:hover:not(:disabled) { background:#1f2937; box-shadow:0 4px 12px rgba(17,24,39,.25); }
+  .abtn:active:not(:disabled) { transform:scale(.97); }
+  .abtn:disabled { opacity:.4; cursor:not-allowed; }
 
-  /* Analyze button */
-  .analyze-btn {
-    background: #111827; color: white;
-    padding: 12px 32px; border: none; border-radius: 8px;
-    font-size: 13px; font-weight: 600; letter-spacing: 0.05em;
-    cursor: pointer; transition: background 0.2s, transform 0.12s, box-shadow 0.2s;
-    font-family: inherit;
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(5px); }
+    to   { opacity:1; transform:translateY(0); }
   }
-  .analyze-btn:hover:not(:disabled) {
-    background: #1f2937;
-    box-shadow: 0 4px 12px rgba(17,24,39,0.25);
-  }
-  .analyze-btn:active:not(:disabled) { transform: scale(0.97); }
-  .analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .fade-up { animation:fadeUp .2s ease; }
 
-  /* Result cards */
-  .rcard {
-    background: white; border: 1px solid #e5e7eb;
-    border-radius: 12px; overflow: hidden;
+  .card { background:white; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
+  .card-hd {
+    padding:12px 20px; border-bottom:1px solid #f3f4f6;
+    font-size:10.5px; font-weight:700; letter-spacing:.1em;
+    text-transform:uppercase; color:#9ca3af;
   }
-  .rcard-header {
-    padding: 12px 20px; border-bottom: 1px solid #f3f4f6;
-    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: #9ca3af;
+  .srow {
+    display:flex; align-items:center; gap:14px; padding:12px 20px;
+    border-bottom:1px solid #f9fafb; transition:background .15s;
   }
-  .score-row {
-    display: flex; align-items: center; gap: 14px;
-    padding: 12px 20px; border-bottom: 1px solid #f9fafb;
-    transition: background 0.15s;
-  }
-  .score-row:last-child { border-bottom: none; }
-  .score-row:hover { background: #fafafa; }
-  .bar-track {
-    flex: 1; height: 5px; background: #f3f4f6;
-    border-radius: 99px; overflow: hidden;
-  }
-  .bar-fill {
-    height: 100%; border-radius: 99px;
-    transition: width 1s cubic-bezier(.4,0,.2,1);
-  }
-  .rubric-row {
-    display: flex; gap: 16px; padding: 14px 20px;
-    border-bottom: 1px solid #f9fafb; align-items: flex-start;
-    transition: background 0.15s;
-  }
-  .rubric-row:last-child { border-bottom: none; }
-  .rubric-row:hover { background: #fafafa; }
+  .srow:last-child { border-bottom:none; }
+  .srow:hover { background:#fafafa; }
+  .btrack { flex:1; height:5px; background:#f3f4f6; border-radius:99px; overflow:hidden; }
+  .bfill  { height:100%; border-radius:99px; transition:width 1s cubic-bezier(.4,0,.2,1); }
   .badge {
-    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
-    text-transform: uppercase; padding: 2px 9px; border-radius: 99px;
+    font-size:10px; font-weight:700; letter-spacing:.06em;
+    text-transform:uppercase; padding:2px 9px; border-radius:99px; white-space:nowrap;
   }
-  .suggestion-item { padding: 16px 20px; border-bottom: 1px solid #f9fafb; }
-  .suggestion-item:last-child { border-bottom: none; }
-  .suggestion-quote {
-    font-size: 13px; color: #6b7280; font-style: italic;
-    line-height: 1.65; border-left: 3px solid #e5e7eb;
-    margin: 0 0 12px; padding: 6px 14px;
+  .rrow { padding:14px 20px; border-bottom:1px solid #f9fafb; transition:background .15s; }
+  .rrow:last-child { border-bottom:none; }
+  .rrow:hover { background:#fafafa; }
+
+  /* Essay body */
+  .essay-body {
+    padding:24px 28px;
+    font-size:14.5px;
+    line-height:1.95;
+    color:#1a1a1a;
+    text-align:justify;
+    hyphens:auto;
+  }
+  .essay-para {
+    margin:0 0 1.3em;
+    text-indent:0;
+  }
+  .essay-para:last-child { margin-bottom:0; }
+
+  /* Yellow highlight */
+  .hl {
+    background:#fef08a;
+    border-bottom:2px solid #f59e0b;
+    border-radius:3px; padding:1px 3px;
+    cursor:pointer; transition:background .15s;
+  }
+  .hl:hover  { background:#fde047; }
+  .hl.active { background:#fbbf24; border-bottom-color:#d97706; }
+
+  /* Inline comment card */
+  @keyframes cmtIn {
+    from { opacity:0; transform:translateY(-4px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  .icmt {
+    margin:8px 0 18px;
+    border:1px solid #e5e7eb; border-radius:10px;
+    background:white; box-shadow:0 4px 16px rgba(0,0,0,.08);
+    overflow:hidden; animation:cmtIn .18s ease;
+    text-align:left;
+  }
+  .icmt-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 14px; background:#fafafa; border-bottom:1px solid #f3f4f6;
+  }
+  .icmt-lbl { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6b7280; }
+  .icmt-x {
+    width:20px; height:20px; border-radius:50%; border:none; background:#e5e7eb;
+    color:#6b7280; font-size:13px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .15s;
+  }
+  .icmt-x:hover { background:#d1d5db; color:#374151; }
+  .icmt-body { padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
+  .icmt-sec { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; margin-bottom:3px; }
+  .icmt-txt { font-size:13px; color:#374151; line-height:1.6; margin:0; }
+  .cmt-nav-btn {
+    flex:1; padding:6px; border:1px solid #e5e7eb; border-radius:6px;
+    background:white; font-size:12px; cursor:pointer; color:#374151;
+    font-family:inherit; transition:background .15s;
+  }
+  .cmt-nav-btn:hover:not(:disabled) { background:#f3f4f6; }
+  .cmt-nav-btn:disabled { opacity:.35; cursor:not-allowed; }
+
+  .hint-pill {
+    display:inline-flex; align-items:center; gap:10px;
+    background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border:1.5px solid #fde68a; border-radius:12px;
+    padding:10px 16px; font-size:12.5px; color:#92400e;
+    font-weight:600; margin-bottom:20px; text-align:left;
+    box-shadow:0 2px 8px rgba(245,158,11,.15);
+  }
+  .hint-dot {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:8px; flex-shrink:0;
+    background:linear-gradient(135deg,#fbbf24,#f59e0b);
+    box-shadow:0 2px 6px rgba(245,158,11,.4);
+    font-size:13px;
   }
 `;
 
+/* ════════════════════════════════════════════════════ */
 export default function EssayReview({ profile, onResult }) {
   const [mode, setMode]       = useState("text");
   const [essay, setEssay]     = useState("");
@@ -170,15 +276,12 @@ export default function EssayReview({ profile, onResult }) {
     } finally { setLoading(false); }
   }
 
-  function switchMode(m) {
-    setMode(m); setError(null); setResult(null);
-  }
+  function switchMode(m) { setMode(m); setError(null); setResult(null); }
 
   return (
-    <div className="essay-wrap">
+    <div className="ew">
       <style>{css}</style>
 
-      {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 700, color: "#111827" }}>Essay Analysis</h2>
         <p style={{ margin: 0, color: "#6b7280", fontSize: 14 }}>
@@ -186,51 +289,32 @@ export default function EssayReview({ profile, onResult }) {
         </p>
       </div>
 
-      {/* Input panel */}
-      <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: 24, marginBottom: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
-
-        {/* Pill tab switcher */}
+      <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: 24, marginBottom: 20, boxShadow: "0 1px 6px rgba(0,0,0,.04)" }}>
         <div style={{ marginBottom: 20 }}>
-          <div className="tab-switcher">
-            <div className={`tab-slider ${mode === "pdf" ? "right" : ""}`} />
-            <button className={`tab-btn ${mode === "text" ? "active" : ""}`} onClick={() => switchMode("text")}>
-              Paste Text
-            </button>
-            <button className={`tab-btn ${mode === "pdf" ? "active" : ""}`} onClick={() => switchMode("pdf")}>
-              Upload PDF
-            </button>
+          <div className="tab-sw">
+            <div className={`tab-sl ${mode === "pdf" ? "r" : ""}`} />
+            <button className={`tab-b ${mode === "text" ? "on" : ""}`} onClick={() => switchMode("text")}>Paste Text</button>
+            <button className={`tab-b ${mode === "pdf"  ? "on" : ""}`} onClick={() => switchMode("pdf")}>Upload PDF</button>
           </div>
         </div>
 
-        {/* Panel content with fade animation */}
-        <div className="panel-content" key={mode}>
+        <div className="fade-up" key={mode}>
           {mode === "text" ? (
-            <>
-              <textarea
-                className="essay-ta"
-                placeholder="Paste your essay here..."
-                value={essay}
-                onChange={(e) => setEssay(e.target.value)}
-              />
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-                <span style={{ fontSize: 12, color: essay.length > 0 && essay.length < 100 ? "#f97316" : "#9ca3af" }}>
-                  {essay.length > 0 && essay.length < 100
-                    ? `${100 - essay.length} more characters needed`
-                    : `${essay.length} characters`}
-                </span>
-                {essay.length > 0 && (
-                  <button onClick={() => setEssay("")}
-                    style={{ fontSize: 12, color: "#9ca3af", border: "none", background: "none", cursor: "pointer" }}>
-                    Clear
-                  </button>
-                )}
-              </div>
-            </>
+            <textarea
+              className="esstxt"
+              placeholder="Paste your essay here (minimum 100 characters)…"
+              value={essay}
+              onChange={e => setEssay(e.target.value)}
+            />
           ) : (
-            <div className={`drop-zone ${pdf ? "filled" : ""}`}
-              onClick={() => document.getElementById("pdf-inp").click()}>
-              <input id="pdf-inp" type="file" accept=".pdf" style={{ display: "none" }}
-                onChange={(e) => setPdf(e.target.files[0])} />
+            <div
+              className={`dz ${pdf ? "has" : ""}`}
+              onClick={() => document.getElementById("_pdfin_").click()}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type === "application/pdf") setPdf(f); }}
+            >
+              <input id="_pdfin_" type="file" accept=".pdf" style={{ display: "none" }}
+                onChange={e => setPdf(e.target.files[0] || null)} />
               {pdf ? (
                 <>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 4 }}>{pdf.name}</div>
@@ -253,82 +337,121 @@ export default function EssayReview({ profile, onResult }) {
         )}
 
         <div style={{ marginTop: 18 }}>
-          <button className="analyze-btn" disabled={loading} onClick={handleSubmit}>
-            {loading ? "Analyzing..." : "Analyze Essay"}
+          <button className="abtn" disabled={loading} onClick={handleSubmit}>
+            {loading ? "Analyzing…" : "Analyze Essay"}
           </button>
         </div>
       </div>
 
-      {result && <EssayResult result={result} />}
+      {result && <EssayResult result={result} schoolName={profile.school_name || "MIT"} />}
     </div>
   );
 }
 
+/* ─── Highlighted essay with inline popover comments ─── */
 function HighlightedEssay({ fullEssay, suggestions }) {
-  // Nếu không có full_essay → fallback hiển thị cũ
+  const [openIdx, setOpenIdx] = useState(null);
+
   if (!fullEssay) {
-    return suggestions.map((s, i) => (
-      <div key={i} style={{ background: "#fef9c3", borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 13, borderLeft: "4px solid #f59e0b" }}>
-        <div style={{ fontStyle: "italic", color: "#78350f", marginBottom: 8, padding: "6px 10px", background: "#fde68a", borderRadius: 6 }}>
-          ❝ {s.quote} ❞
-        </div>
-        <p style={{ marginBottom: 6 }}><strong style={{ color: "#dc2626" }}>⚠️ Vấn đề:</strong> {s.issue}</p>
-        <p style={{ color: "#15803d" }}><strong>✅ Suggest:</strong> {s.suggestion}</p>
-      </div>
-    ));
-  }
-
-  // Parse @@...@@ → highlight vàng
-  const parts = fullEssay.split(/(@@[^@]+@@)/g);
-  const highlighted = parts.map((part, i) => {
-    if (part.startsWith("@@") && part.endsWith("@@")) {
-      return (
-        <mark key={i} style={{
-          background: "#fde68a", borderRadius: 3,
-          padding: "1px 3px",
-          borderBottom: "2px solid #f59e0b",
-          fontStyle: "normal",
-        }}>
-          {part.slice(2, -2)}
-        </mark>
-      );
-    }
-    return <span key={i}>{part}</span>;
-  });
-
-  return (
-    <>
-      {/* Toàn bộ essay với highlight */}
-      <div style={{
-        background: "white", border: "1px solid #e5e7eb",
-        borderRadius: 10, padding: 20, marginBottom: 20,
-        fontSize: 14, lineHeight: 1.9,
-        textAlign: "justify",
-        wordBreak: "break-word",
-      }}>
-        <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10 }}>
-          🟡 Highlighted = needs improvement
-        </div>
-        {highlighted}
-      </div>
-
-      {/* Giải thích từng highlight */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    return (
+      <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {suggestions.map((s, i) => (
-          <div key={i} style={{ background: "#fef9c3", borderRadius: 10, padding: 14, fontSize: 13, borderLeft: "4px solid #f59e0b" }}>
-            <div style={{ fontStyle: "italic", color: "#78350f", marginBottom: 8, padding: "6px 10px", background: "#fde68a", borderRadius: 6 }}>
-              ❝ {s.quote} ❞
-            </div>
-            <p style={{ marginBottom: 6 }}><strong style={{ color: "#dc2626" }}>⚠️ Issue:</strong> {s.issue}</p>
-            <p style={{ color: "#15803d" }}><strong>✅ Suggest:</strong> {s.suggestion}</p>
+          <div key={i} style={{ background: "#fffbeb", borderRadius: 10, padding: 14, fontSize: 13, borderLeft: "4px solid #f59e0b" }}>
+            <div style={{ fontStyle: "italic", color: "#92400e", marginBottom: 8, padding: "5px 10px", background: "#fef3c7", borderRadius: 6 }}>"{s.quote}"</div>
+            <p style={{ marginBottom: 6 }}><strong style={{ color: "#dc2626" }}>Issue:</strong> {s.issue}</p>
+            <p style={{ margin: 0, color: "#15803d" }}><strong>Suggestion:</strong> {s.suggestion}</p>
           </div>
         ))}
       </div>
-    </>
+    );
+  }
+
+  // 1. Clean text (fix PDF artifacts, protect markers)
+  const cleaned = cleanHighlightedText(fullEssay);
+
+  // 2. Split into paragraphs smartly
+  const paragraphs = splitIntoParagraphs(cleaned);
+
+  // 3. Parse @@highlight@@ inside each paragraph
+  let hIdx = 0;
+  const parsedParas = paragraphs.map(para => {
+    return para.split(/(@@[^@]+@@)/g).map(part => {
+      if (part.startsWith("@@") && part.endsWith("@@"))
+        return { type: "hl", text: part.slice(2, -2), idx: hIdx++ };
+      return { type: "plain", text: part };
+    });
+  });
+  const totalHL = hIdx;
+
+  return (
+    <div className="essay-body">
+      {totalHL > 0 && (
+        <div className="hint-pill">
+          <span className="hint-dot">✏️</span>
+          <span>
+            <strong>{totalHL} section{totalHL !== 1 ? "s" : ""}</strong> marked for revision
+            <span style={{ fontWeight:400, opacity:.8 }}> — click the highlighted text to view feedback</span>
+          </span>
+        </div>
+      )}
+
+      {parsedParas.map((parts, gi) => {
+        const paraHasOpen = parts.some(s => s.type === "hl" && s.idx === openIdx);
+        return (
+          <div key={gi}>
+            <p className="essay-para">
+              {parts.map((seg, si) => {
+                if (seg.type === "plain") return <span key={si}>{seg.text}</span>;
+                const isOpen = openIdx === seg.idx;
+                return (
+                  <span
+                    key={si}
+                    className={`hl${isOpen ? " active" : ""}`}
+                    onClick={() => setOpenIdx(isOpen ? null : seg.idx)}
+                    title="Click to view feedback"
+                  >
+                    {seg.text}
+                  </span>
+                );
+              })}
+            </p>
+
+            {paraHasOpen && openIdx !== null && suggestions[openIdx] && (
+              <div className="icmt">
+                <div className="icmt-head">
+                  <span className="icmt-lbl">Comment {openIdx + 1} of {totalHL}</span>
+                  <button className="icmt-x" onClick={() => setOpenIdx(null)}>×</button>
+                </div>
+                <div className="icmt-body">
+                  <div style={{ background: "#fffbeb", borderLeft: "3px solid #f59e0b", borderRadius: "0 6px 6px 0", padding: "6px 12px", fontSize: 13, fontStyle: "italic", color: "#92400e", lineHeight: 1.55 }}>
+                    "{suggestions[openIdx].quote}"
+                  </div>
+                  <div>
+                    <div className="icmt-sec" style={{ color: "#dc2626" }}>Issue</div>
+                    <p className="icmt-txt">{suggestions[openIdx].issue}</p>
+                  </div>
+                  <div>
+                    <div className="icmt-sec" style={{ color: "#059669" }}>Suggestion</div>
+                    <p className="icmt-txt">{suggestions[openIdx].suggestion}</p>
+                  </div>
+                  {totalHL > 1 && (
+                    <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6" }}>
+                      <button className="cmt-nav-btn" onClick={() => setOpenIdx(i => Math.max(0, i - 1))} disabled={openIdx === 0}>← Previous</button>
+                      <button className="cmt-nav-btn" onClick={() => setOpenIdx(i => Math.min(totalHL - 1, i + 1))} disabled={openIdx === totalHL - 1}>Next →</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
-function EssayResult({ result }) {
+/* ─── Full result layout ─── */
+function EssayResult({ result, schoolName }) {
   const scores      = result.scores || {};
   const criteria    = result.criterion_feedback || [];
   const suggestions = result.paragraph_suggestions || [];
@@ -338,13 +461,10 @@ function EssayResult({ result }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
-      {/* Summary banner */}
+      {/* Summary */}
       <div style={{ background: "#111827", borderRadius: 12, padding: "24px 28px", display: "flex", gap: 28, alignItems: "center" }}>
         <div style={{ flexShrink: 0, textAlign: "center" }}>
           <div style={{ fontSize: 36, fontWeight: 800, color: ovTag.bar, lineHeight: 1 }}>
-            {ovTag.text}
-          </div>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: ovTag.bar, marginTop: 6 }}>
             {ovTag.text}
           </div>
         </div>
@@ -352,33 +472,33 @@ function EssayResult({ result }) {
         <p style={{ margin: 0, color: "#9ca3af", fontSize: 14, lineHeight: 1.7 }}>{result.summary}</p>
       </div>
 
-      {/* Scores */}
-      <div className="rcard">
-        <div className="rcard-header">Score Breakdown</div>
+      {/* Score breakdown */}
+      <div className="card">
+        <div className="card-hd">Score Breakdown</div>
         {Object.entries(scores).filter(([k]) => k !== "overall").map(([k, v]) => {
           const tag = scoreTag(v);
           return (
-            <div className="score-row" key={k}>
-              <div style={{ width: 130, fontSize: 13, color: "#374151", flexShrink: 0 }}>
+            <div className="srow" key={k}>
+              <div style={{ width: 140, fontSize: 13, color: "#374151", flexShrink: 0 }}>
                 {SCORE_LABELS[k] || k.replace(/_/g, " ")}
               </div>
-              <div className="bar-track">
-                <div className="bar-fill" style={{ width: `${(v / 10) * 100}%`, background: tag.bar }} />
+              <div className="btrack">
+                <div className="bfill" style={{ width: `${(v / 10) * 100}%`, background: tag.bar }} />
               </div>
-              <span className="badge" style={{ color: tag.color, background: tag.bg, flexShrink: 0, minWidth: 76, textAlign: "center" }}>{tag.text}</span>
+              <span className="badge" style={{ color: tag.color, background: tag.bg }}>{tag.text}</span>
             </div>
           );
         })}
       </div>
 
-      {/* Strengths & Weaknesses */}
+      {/* Strengths + Weaknesses */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         {[
-          { title: "Strengths", items: result.strengths || [], dot: "#10b981", hc: "#065f46" },
+          { title: "Strengths",        items: result.strengths  || [], dot: "#10b981", hc: "#065f46" },
           { title: "Areas to Improve", items: result.weaknesses || [], dot: "#f97316", hc: "#9a3412" },
         ].map(({ title, items, dot, hc }) => (
-          <div className="rcard" key={title}>
-            <div className="rcard-header" style={{ color: hc }}>{title}</div>
+          <div className="card" key={title}>
+            <div className="card-hd" style={{ color: hc }}>{title}</div>
             <div style={{ padding: "14px 20px" }}>
               {items.map((item, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, marginBottom: 9, fontSize: 13, color: "#374151", lineHeight: 1.55 }}>
@@ -391,37 +511,32 @@ function EssayResult({ result }) {
         ))}
       </div>
 
-      {/* Essay highlight */}
+      {/* Essay with highlights */}
       {suggestions.length > 0 && (
-        <div className="rcard">
-          <div className="rcard-header">✏️ Essay with highlights</div>
-          <div style={{ padding: "16px 20px" }}>
-            <HighlightedEssay
-              fullEssay={result.full_essay_with_highlights}
-              suggestions={suggestions}
-            />
-          </div>
+        <div className="card">
+          <div className="card-hd">Essay with Suggested Edits</div>
+          <HighlightedEssay
+            fullEssay={result.full_essay_with_highlights}
+            suggestions={suggestions}
+          />
         </div>
       )}
 
-      {/* Rubric */}
+      {/* Rubric — single badge */}
       {criteria.length > 0 && (
-        <div className="rcard">
-          <div className="rcard-header">MIT Admissions Rubric</div>
+        <div className="card">
+          <div className="card-hd">{schoolName} Admissions Rubric</div>
           {criteria.map((c, i) => {
             const tag = scoreTag(c.score);
             return (
-              <div className="rubric-row" key={i}>
-               <div style={{ flexShrink: 0 }}>
+              <div className="rrow" key={i}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                    {SCORE_LABELS[c.criterion] || c.criterion.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                  </span>
                   <span className="badge" style={{ color: tag.color, background: tag.bg }}>{tag.text}</span>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{c.criterion}</span>
-                    <span className="badge" style={{ color: tag.color, background: tag.bg }}>{tag.text}</span>
-                  </div>
-                  <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.6 }}>{c.comment}</p>
-                </div>
+                <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.6 }}>{c.comment}</p>
               </div>
             );
           })}
@@ -430,8 +545,8 @@ function EssayResult({ result }) {
 
       {/* Clichés */}
       {result.cliche_flags?.length > 0 && (
-        <div className="rcard">
-          <div className="rcard-header" style={{ color: "#991b1b" }}>Clichés Detected</div>
+        <div className="card">
+          <div className="card-hd" style={{ color: "#991b1b" }}>Clichés Detected</div>
           <div style={{ padding: "14px 20px", display: "flex", gap: 8, flexWrap: "wrap" }}>
             {result.cliche_flags.map((c, i) => (
               <span key={i} style={{ fontSize: 12, color: "#991b1b", background: "#fef2f2", padding: "4px 12px", borderRadius: 99, fontStyle: "italic", border: "1px solid #fecaca" }}>

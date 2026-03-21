@@ -122,7 +122,8 @@ Evaluate these dimensions:
 
 STRICT SCORING RULES — You must follow these exactly:
 - If the student gave ONLY one-word answers, greetings, or off-topic responses: overall_score must be 1-5
-- If fewer than 3 meaningful, on-topic answers were given: admission_likelihood_percent must be under 10
+- If fewer than 3 meaningful, on-topic answers were given: admission_likelihood_percent must be 0
+- If the student said NOTHING meaningful (only greetings, one words, silence): admission_likelihood_percent must be exactly 0, overall_score must be exactly 1
 - Single words like "Bye", "Thanks", "Hi", "Ok" = score 1/10 for every dimension
 - Do NOT give charity points. A score of 40+ requires at least 4 substantive, relevant answers
 - A score of 70+ requires at least 7 solid, on-topic answers across all turns
