@@ -1,30 +1,30 @@
 import { useState } from "react";
 
 const FIELDS = [
-  { key: "name",        label: "Họ và tên",   placeholder: "e.g. Nguyen Van A",  type: "text" },
+  { key: "name",        label: "Full Name",   placeholder: "e.g. Alex Nguyen",  type: "text" },
   { key: "gpa",         label: "GPA",          placeholder: "0 – 4.0",            type: "number", min: 0, max: 4.0,  step: 0.01,
-    validate: (v) => v < 0 ? "Không thể âm" : v > 4.0 ? "Tối đa 4.0" : null },
+    validate: (v) => v < 0 ? "Cannot be negative" : v > 4.0 ? "Maximum is 4.0" : null },
   { key: "sat",         label: "SAT",          placeholder: "400 – 1600",         type: "number", min: 400, max: 1600, step: 10,
-    validate: (v) => v < 400 ? "Tối thiểu 400" : v > 1600 ? "Tối đa 1600" : null },
+    validate: (v) => v < 400 ? "Minimum is 400" : v > 1600 ? "Maximum is 1600" : null },
   { key: "ielts",       label: "IELTS",        placeholder: "0 – 9.0",            type: "number", min: 0, max: 9.0,  step: 0.5,
-    validate: (v) => v < 0 ? "Không thể âm" : v > 9.0 ? "Tối đa 9.0" : null },
+    validate: (v) => v < 0 ? "Cannot be negative" : v > 9.0 ? "Maximum is 9.0" : null },
   { key: "act",         label: "ACT",          placeholder: "1 – 36",             type: "number", min: 1, max: 36,   step: 1,
-    validate: (v) => v < 1 ? "Tối thiểu 1" : v > 36 ? "Tối đa 36" : null },
-  { key: "major",       label: "Ngành học",    placeholder: "Computer Science", type: "text", readonly: true },
-  { key: "school_name", label: "Trường apply", placeholder: "MIT",               type: "text", readonly: true },
+    validate: (v) => v < 1 ? "Minimum is 1" : v > 36 ? "Maximum is 36" : null },
+  { key: "major",       label: "Major",    placeholder: "Computer Science", type: "text", readonly: true },
+  { key: "school_name", label: "School", placeholder: "MIT",               type: "text", readonly: true },
 ];
 
 const ACTIVITY_CATEGORIES = [
-  { id: "academic",     emoji: "🎓", label: "Học thuật",            desc: "Olympiad, cuộc thi học thuật, học bổng" },
-  { id: "research",     emoji: "🔬", label: "Nghiên cứu",           desc: "Research project, paper, lab internship" },
-  { id: "leadership",   emoji: "👑", label: "Lãnh đạo",             desc: "Chủ nhiệm CLB, ban cán sự, captain đội" },
-  { id: "volunteer",    emoji: "🤝", label: "Thiện nguyện",         desc: "Tình nguyện, cộng đồng, NGO" },
-  { id: "internship",   emoji: "💼", label: "Thực tập / Công việc", desc: "Intern, part-time, startup" },
-  { id: "sports",       emoji: "⚽", label: "Thể thao",             desc: "CLB thể thao, thi đấu, huấn luyện" },
-  { id: "arts",         emoji: "🎨", label: "Nghệ thuật / Sáng tạo", desc: "Âm nhạc, hội họa, thiết kế, viết lách" },
-  { id: "stem_project", emoji: "💻", label: "Dự án STEM",           desc: "App, website, robot, hackathon" },
-  { id: "award",        emoji: "🏆", label: "Giải thưởng",          desc: "Giải quốc gia, quốc tế, danh hiệu" },
-  { id: "other",        emoji: "✨", label: "Khác",                 desc: "Hoạt động không thuộc các mục trên" },
+  { id: "academic",     emoji: "🎓", label: "Academic",            desc: "Olympiad, academic competitions, scholarships" },
+  { id: "research",     emoji: "🔬", label: "Research",           desc: "Research project, paper, lab internship" },
+  { id: "leadership",   emoji: "👑", label: "Leadership",             desc: "Club president, student council, team captain" },
+  { id: "volunteer",    emoji: "🤝", label: "Volunteering",         desc: "Community service, NGO, social impact" },
+  { id: "internship",   emoji: "💼", label: "Internship / Work", desc: "Intern, part-time, startup" },
+  { id: "sports",       emoji: "⚽", label: "Sports",             desc: "Sports club, competition, coaching" },
+  { id: "arts",         emoji: "🎨", label: "Arts / Creative", desc: "Music, painting, design, writing" },
+  { id: "stem_project", emoji: "💻", label: "STEM Project",           desc: "App, website, robot, hackathon" },
+  { id: "award",        emoji: "🏆", label: "Awards",          desc: "National, international awards, honors" },
+  { id: "other",        emoji: "✨", label: "Other",                 desc: "Activities not listed above" },
 ];
 
 export function ProfileBar({ profile, onChange }) {
@@ -93,10 +93,10 @@ export function ProfileBar({ profile, onChange }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 16 }}>📋</span>
-          <span style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>Hồ sơ học sinh</span>
+          <span style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>Student Profile</span>
           {!open && (
             <span style={{ fontSize: 12, color: "#9ca3af", marginLeft: 4 }}>
-              {profile.name || "Chưa điền"} {profile.gpa ? `· GPA ${profile.gpa}` : ""} {profile.school_name ? `· ${profile.school_name}` : ""}
+              {profile.name || "Not filled"} {profile.gpa ? `· GPA ${profile.gpa}` : ""} {profile.school_name ? `· ${profile.school_name}` : ""}
             </span>
           )}
         </div>
@@ -146,7 +146,7 @@ export function ProfileBar({ profile, onChange }) {
 
           {/* Activities */}
           <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 10 }}>
-            Hoạt động ngoại khóa — chọn tất cả hạng mục phù hợp
+            Extracurriculars — select all that apply
           </label>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -177,7 +177,7 @@ export function ProfileBar({ profile, onChange }) {
           {selectedCats.length > 0 && (
             <div style={{ marginTop: 14, background: "#f8faff", borderRadius: 10, border: "1px solid #dbeafe", padding: "14px 16px" }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 12 }}>
-                Mô tả chi tiết từng hạng mục
+                Describe each selected activity
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {selectedCats.map((id) => {
