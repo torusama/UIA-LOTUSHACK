@@ -3,17 +3,30 @@ from pathlib import Path
 
 SCHOOLS = json.loads((Path(__file__).parent.parent / "data" / "schools.json").read_text())
 
-def build_essay_prompt(essay_text: str, school_name: str, student_profile: dict) -> str:
+def build_essay_prompt(essay_text: str, school_name: str, student_profile: dict, similar_essays: list = []) -> str:
     school = SCHOOLS.get(school_name, {})
     criteria = "\n".join(f"- {c}" for c in school.get("essay_criteria", []))
     activities = student_profile.get('activities', [])
     activities_str = ", ".join(activities) if isinstance(activities, list) else str(activities)
 
-    # Major-specific notes
     major = student_profile.get('major', '')
     major_notes = school.get("major_specific_notes", {}).get(major, "")
     major_section = f"\nSPECIAL FOCUS FOR {major.upper()}:\n- {major_notes}" if major_notes else ""
-    major_instruction = f"\n6. For {major}: check specifically for {major_notes}" if major_notes else ""
+    major_instruction = f"\n7. For {major}: check specifically for {major_notes}" if major_notes else ""
+
+    # Benchmark section từ RAG
+    benchmark_section = ""
+    if similar_essays:
+        benchmarks = "\n\n---\n".join([
+            f'ADMITTED ESSAY EXAMPLE {i+1}:\n"""\n{e}\n"""'
+            for i, e in enumerate(similar_essays)
+        ])
+        benchmark_section = f"""
+BENCHMARK — Real essays from students admitted to top universities:
+{benchmarks}
+
+Use these as quality reference. Compare the student's essay against these benchmarks.
+"""
 
     return f"""You are a senior admissions officer at {school_name} with 15+ years of experience.
 Your job is to give HONEST, SPECIFIC, and ACTIONABLE feedback on this student's essay.
@@ -27,18 +40,31 @@ STUDENT PROFILE:
 {school_name} ESSAY CRITERIA:
 {criteria if criteria else "- Clarity of narrative\\n- Authenticity and voice\\n- Intellectual curiosity\\n- Fit with school mission\\n- Originality"}
 {major_section}
-
+{benchmark_section}
 STUDENT'S ESSAY:
 \"\"\"
 {essay_text}
 \"\"\"
 
 EVALUATION INSTRUCTIONS:
-1. Read the essay carefully before scoring
+1. Read the ENTIRE essay carefully before scoring anything
 2. Be SPECIFIC — quote exact phrases when giving feedback
 3. Flag any CLICHÉ phrases (e.g. "ever since I was young", "passion for", "changed my life")
 4. Assess if the essay sounds GENERIC or truly personal
-5. Check if the student's story CONNECTS to {school_name}'s values/mission{major_instruction}
+5. Check if the student's story CONNECTS to {school_name}'s values/mission
+6. For paragraph_suggestions — find ALL genuinely weak sentences:
+   - Strong essay (overall >= 8)  → 1-2 suggestions
+   - Average essay (overall 5-7)  → 3-4 suggestions
+   - Weak essay (overall <= 4)    → 4-6 suggestions
+   - ONLY flag sentences that are truly weak — never force suggestions on good sentences
+   - Each suggestion must point to a DIFFERENT part of the essay{major_instruction}
+
+IMPORTANT FOR full_essay_with_highlights:
+- Copy the ENTIRE essay text exactly, preserve all line breaks
+- Wrap ONLY the weak phrases/sentences with @@...@@ markers
+- The number of @@ highlights must MATCH the number of paragraph_suggestions
+- Example: "I have @@always been passionate about@@ technology. @@This changed my life@@."
+- Do NOT change, add or remove any other text
 
 Return ONLY valid JSON in this exact structure:
 {{
@@ -78,6 +104,7 @@ Return ONLY valid JSON in this exact structure:
       "suggestion": "<concrete rewrite suggestion>"
     }}
   ],
+  "full_essay_with_highlights": "<entire essay text with @@weak phrases@@ wrapped — number of @@ must match paragraph_suggestions count>",
   "summary": "<3-4 sentence overall verdict — be honest, mention both what works and what needs improvement>"
 }}"""
 

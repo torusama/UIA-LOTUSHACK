@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from services.openai_service import chat_completion
+from services.rag_service import find_similar_essays
 from prompts.essay_prompts import build_essay_prompt, build_essay_rewrite_prompt
 
 router = APIRouter()
@@ -13,23 +14,28 @@ router = APIRouter()
 class EssayTextRequest(BaseModel):
     essay_text: str
     school_name: str
-    student_profile: dict  # { gpa, major, activities, name }
+    student_profile: dict
 
 
-# ── DEMO ENDPOINT 1: Submit essay as plain text ─────────────────────────────
 @router.post("/review")
 async def review_essay(req: EssayTextRequest):
-    """
-    Core demo endpoint. Takes essay text + school + profile.
-    Returns full rubric-based analysis from GPT-4o.
-    """
     if len(req.essay_text.strip()) < 100:
         raise HTTPException(400, "Essay too short (minimum 100 characters)")
+
+    # RAG — tìm essay tương tự đã đậu
+    similar = await find_similar_essays(
+        user_essay=req.essay_text,
+        school=req.school_name,
+        n=2
+    )
+    if similar:
+        print(f"RAG: using {len(similar)} benchmark essays")
 
     system_prompt = build_essay_prompt(
         req.essay_text,
         req.school_name,
-        req.student_profile
+        req.student_profile,
+        similar_essays=similar
     )
 
     result = await chat_completion(
@@ -44,17 +50,12 @@ async def review_essay(req: EssayTextRequest):
 async def review_essay_pdf(
     file: UploadFile = File(...),
     school_name: str = Form(...),
-    student_profile: str = Form(...),  # JSON string
+    student_profile: str = Form(...),
 ):
-    """
-    Upload PDF essay → extract text → analyze with GPT-4o.
-    """
-    # 1. Validate file type
     if not file.filename.endswith(".pdf"):
         raise HTTPException(400, "Only PDF files are accepted")
 
-    # 2. Extract text từ PDF
-    import pdfplumber, io
+    import pdfplumber
     content = await file.read()
     essay_text = ""
     with pdfplumber.open(io.BytesIO(content)) as pdf:
@@ -66,15 +67,21 @@ async def review_essay_pdf(
     if len(essay_text.strip()) < 100:
         raise HTTPException(400, "Could not extract enough text from PDF (minimum 100 characters)")
 
-    # 3. Parse student_profile từ JSON string
-    import json
     try:
         profile = json.loads(student_profile)
     except Exception:
         raise HTTPException(400, "student_profile must be valid JSON")
 
-    # 4. Gọi cùng logic với /review
-    system_prompt = build_essay_prompt(essay_text, school_name, profile)
+    # RAG cho PDF
+    similar = await find_similar_essays(
+        user_essay=essay_text,
+        school=school_name,
+        n=2
+    )
+    if similar:
+        print(f"RAG: using {len(similar)} benchmark essays")
+
+    system_prompt = build_essay_prompt(essay_text, school_name, profile, similar_essays=similar)
     result = await chat_completion(
         system_prompt=system_prompt,
         messages=[{"role": "user", "content": "Please analyze this essay now."}],
@@ -82,17 +89,16 @@ async def review_essay_pdf(
     )
     return JSONResponse(content=result)
 
+
 class RewriteRequest(BaseModel):
     original_paragraph: str
     issue: str
     suggestion: str
     school_name: str
 
+
 @router.post("/rewrite-section")
 async def rewrite_section(req: RewriteRequest):
-    """
-    Nhận 1 đoạn văn yếu + issue + suggestion → GPT-4o rewrite lại.
-    """
     if len(req.original_paragraph.strip()) < 20:
         raise HTTPException(400, "Paragraph too short (minimum 20 characters)")
 

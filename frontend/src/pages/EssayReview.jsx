@@ -43,7 +43,6 @@ export default function EssayReview({ profile, onResult }) {
     <section>
       <h2 style={{ marginBottom: 16 }}>Essay Analysis — {profile.school_name || "MIT"}</h2>
 
-      {/* Tab chọn Text / PDF */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["text", "pdf"].map(m => (
           <button
@@ -62,7 +61,6 @@ export default function EssayReview({ profile, onResult }) {
         ))}
       </div>
 
-      {/* Input */}
       {mode === "text" ? (
         <textarea
           rows={12}
@@ -101,6 +99,69 @@ export default function EssayReview({ profile, onResult }) {
   );
 }
 
+function HighlightedEssay({ fullEssay, suggestions }) {
+  // Nếu không có full_essay → fallback hiển thị cũ
+  if (!fullEssay) {
+    return suggestions.map((s, i) => (
+      <div key={i} style={{ background: "#fef9c3", borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 13, borderLeft: "4px solid #f59e0b" }}>
+        <div style={{ fontStyle: "italic", color: "#78350f", marginBottom: 8, padding: "6px 10px", background: "#fde68a", borderRadius: 6 }}>
+          ❝ {s.quote} ❞
+        </div>
+        <p style={{ marginBottom: 6 }}><strong style={{ color: "#dc2626" }}>⚠️ Vấn đề:</strong> {s.issue}</p>
+        <p style={{ color: "#15803d" }}><strong>✅ Gợi ý:</strong> {s.suggestion}</p>
+      </div>
+    ));
+  }
+
+  // Parse @@...@@ → highlight vàng
+  const parts = fullEssay.split(/(@@[^@]+@@)/g);
+  const highlighted = parts.map((part, i) => {
+    if (part.startsWith("@@") && part.endsWith("@@")) {
+      return (
+        <mark key={i} style={{
+          background: "#fde68a", borderRadius: 3,
+          padding: "1px 3px",
+          borderBottom: "2px solid #f59e0b",
+          fontStyle: "normal",
+        }}>
+          {part.slice(2, -2)}
+        </mark>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+
+  return (
+    <>
+      {/* Toàn bộ essay với highlight */}
+      <div style={{
+        background: "white", border: "1px solid #e5e7eb",
+        borderRadius: 10, padding: 20, marginBottom: 20,
+        fontSize: 14, lineHeight: 1.9, whiteSpace: "pre-wrap",
+        textAlign: "justify",
+      }}>
+        <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10 }}>
+          🟡 Phần tô vàng = cần chỉnh sửa
+        </div>
+        {highlighted}
+      </div>
+
+      {/* Giải thích từng highlight */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {suggestions.map((s, i) => (
+          <div key={i} style={{ background: "#fef9c3", borderRadius: 10, padding: 14, fontSize: 13, borderLeft: "4px solid #f59e0b" }}>
+            <div style={{ fontStyle: "italic", color: "#78350f", marginBottom: 8, padding: "6px 10px", background: "#fde68a", borderRadius: 6 }}>
+              ❝ {s.quote} ❞
+            </div>
+            <p style={{ marginBottom: 6 }}><strong style={{ color: "#dc2626" }}>⚠️ Vấn đề:</strong> {s.issue}</p>
+            <p style={{ color: "#15803d" }}><strong>✅ Gợi ý:</strong> {s.suggestion}</p>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function EssayResult({ result }) {
   const scores      = result.scores || {};
   const criteria    = result.criterion_feedback || [];
@@ -109,7 +170,7 @@ function EssayResult({ result }) {
   return (
     <div style={{ marginTop: 32 }}>
 
-      {/* 1. Điểm tổng quan — label thay số */}
+      {/* 1. Điểm tổng quan */}
       <h3 style={{ marginBottom: 12 }}>Điểm tổng quan</h3>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
         {Object.entries(scores).map(([k, v]) => (
@@ -124,27 +185,14 @@ function EssayResult({ result }) {
         </div>
       )}
 
-      {/* 3. Câu cần sửa ← lên trên */}
+      {/* 3. Essay highlight + gợi ý */}
       {suggestions.length > 0 && (
         <>
           <h3 style={{ margin: "0 0 12px" }}>✏️ Câu cần sửa + gợi ý thay thế</h3>
-          {suggestions.map((s, i) => (
-            <div key={i} style={{ background: "#fef9c3", borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 13 }}>
-              <div style={{
-                fontStyle: "italic", color: "#78350f", marginBottom: 8,
-                padding: "8px 12px", background: "#fde68a", borderRadius: 6,
-                borderLeft: "3px solid #f59e0b"
-              }}>
-                ❝ {s.quote} ❞
-              </div>
-              <p style={{ marginBottom: 6 }}>
-                <strong style={{ color: "#dc2626" }}>⚠️ Vấn đề:</strong> {s.issue}
-              </p>
-              <p style={{ color: "#15803d" }}>
-                <strong>✅ Gợi ý:</strong> {s.suggestion}
-              </p>
-            </div>
-          ))}
+          <HighlightedEssay
+            fullEssay={result.full_essay_with_highlights}
+            suggestions={suggestions}
+          />
         </>
       )}
 

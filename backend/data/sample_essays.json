@@ -1,0 +1,32 @@
+[
+  {
+    "id": "mit_cs_brian_01",
+    "school": "MIT",
+    "major": "Computer Science",
+    "prompt_topic": "activity",
+    "prompt": "Tell us about something you do simply for the pleasure of it.",
+    "admitted": true,
+    "why_it_works": "Opens with vivid action scene, specific unique activity, strong community angle, authentic MIT dorm culture",
+    "essay": "I slam the ball onto the concrete of our dorm's courtyard, and it whizzes past my opponents. ******, which is a mashup of tennis, squash, and volleyball, is not only a spring term pastime but also an important dorm tradition. It can only be played using the eccentric layout of our dorm's architecture and thus cultivates a special feeling of community that transcends grade or friend groups. I will always remember the amazing outplays from yearly tournaments that we celebrate together. Our dorm's collective GPA may go significantly down during the spring, but it's worth it."
+  },
+  {
+    "id": "stanford_cs_sarah_01",
+    "school": "Stanford",
+    "major": "Computer Science",
+    "prompt_topic": "identity",
+    "prompt": "Describe the world you come from. How has that world shaped your dreams and aspirations?",
+    "admitted": true,
+    "why_it_works": "Opens with vivid scene, shows teaching experience, connects personal story to STEM mission, authentic voice",
+    "essay": "The fragile glass beaker shattered on the ground, and hydrogen peroxide, flowing furiously like lava, began to conquer the floor with every inch the flammable puddle expanded. This was my solace. As an assistant teacher for a middle school STEM class on the weekends, mistakes were common, especially those that made me mentally pinpoint where we kept the fire extinguishers. However, these mishaps reminded me exactly why I loved this job (besides the obvious luxury of cleaning up spills): every failure was a chance to learn in the purest form. As we conducted chemical experiments or explored electronics kits, I was comforted by the kids' genuine enthusiasm for exploration—a sentiment often lost in the grade-obsessed world of high school. Accordingly, I tried to help my students recognize that mistakes are often the most productive way to grow and learn. I encouraged my students to persist when faced with failure, especially those who might not have been encouraged in their everyday lives. I was there for students like Nathan, a child on the autism spectrum who reminded me of my older brother with autism. I was there for the two girls in a class of 17, reminding me of my own journey navigating the male-dominated world of STEM. I wanted to encourage them into a lifelong journey of pursuing knowledge and embracing mistakes. I may have been their mentor, but these lessons also serve as a crucial reminder to me that mistakes are not representative of one's overall worth."
+  },
+  {
+    "id": "stanford_cs_zl_01",
+    "school": "Stanford",
+    "major": "Computer Science",
+    "prompt_topic": "identity",
+    "prompt": "Describe the world you come from. How has that world shaped your dreams and aspirations?",
+    "admitted": true,
+    "why_it_works": "Combines science and arts, specific achievements (ISEF), shows intellectual range, clear connection to future goals",
+    "essay": "One of my earliest memories is pouring over National Geographic magazines with my older brother. As I examined the photographs and illustrations, he attempted to explain the intricacies of the solar system or the mysteries of deep-sea creatures. I have always been enthralled by the expanse of scientific knowledge and the infinite list of unanswered questions. [Place Redacted], where I grew up, has been a breeding ground for innovation since its days revolutionizing the steel industry. More recently, [Place Redacted] has become a center for medicine, information technology, and robotics. Growing up near the University of [Place Redacted] and Carnegie Mellon University, I've been fortunate to pursue unique biomedical research opportunities and participate in the [Place Redacted] Regional Science and Engineering Fair, from which I was selected to compete at ISEF. [Place Redacted] is also a center for the arts, with world class music and dance. I've had the opportunity to study at [Place Redacted] Ballet Theatre for 13 years, performing alongside professional dancers in productions such as Romeo and Juliet and the Nutcracker. Beyond the technicalities of pliés and tendus, ballet taught me about discipline and collaboration – lessons I apply to everyday life. Ballet also encompassed community service. I have enjoyed performing for children with autism and recognize how our ballet community brings joy to other communities. Each of these experiences has fueled my desire to explore STEM fields and will continue to as I collaborate on biomedical research to improve the lives of others."
+  }
+]
