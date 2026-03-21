@@ -158,7 +158,8 @@ export default function InterviewSim({ profile, onReport }) {
 
       setHistory(newHistory);
       historyRef.current = newHistory;
-
+      setUserTypingText("");     
+      setIsUserTyping(false); 
       setTurnCount((n) => { turnCountRef.current = n + 1; return n + 1; });
       setFeedback(
         data.feedback_on_previous
@@ -296,7 +297,20 @@ export default function InterviewSim({ profile, onReport }) {
       {phase === "active" && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <button
-            onClick={isRecording ? stopRecording : startRecording}
+            onClick={() => {
+              if (isRecording) {
+                stopRecording();
+              } else {
+                if (audioRef.current) {
+                  audioRef.current.pause();
+                  audioRef.current.src = "";
+                }
+                clearInterval(typingRef.current);
+                setIsTyping(false);
+                setIsAISpeaking(false);
+                startRecording();
+              }
+            }}
             disabled={loading || isTyping || isAISpeaking}
             style={{
               width: 72, height: 72, borderRadius: "50%",
@@ -356,7 +370,17 @@ export default function InterviewSim({ profile, onReport }) {
           )}
 
           <button
-            onClick={handleEnd}
+            onClick={() => {
+              if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.src = "";
+              }
+              clearInterval(typingRef.current);
+              setIsTyping(false);
+              setTypingText("");
+              setIsAISpeaking(false);
+              handleEnd();
+            }}
             disabled={loading}
             style={{
               padding: "6px 20px", background: "transparent",
