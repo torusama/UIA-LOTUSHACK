@@ -340,8 +340,8 @@ function EssayResult({ result }) {
       {/* Summary banner */}
       <div style={{ background: "#111827", borderRadius: 12, padding: "24px 28px", display: "flex", gap: 28, alignItems: "center" }}>
         <div style={{ flexShrink: 0, textAlign: "center" }}>
-          <div style={{ fontSize: 48, fontWeight: 800, color: ovTag.bar, lineHeight: 1 }}>
-            {overall}<span style={{ fontSize: 20, color: "#4b5563" }}>/10</span>
+          <div style={{ fontSize: 36, fontWeight: 800, color: ovTag.bar, lineHeight: 1 }}>
+            {ovTag.text}
           </div>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: ovTag.bar, marginTop: 6 }}>
             {ovTag.text}
@@ -364,7 +364,6 @@ function EssayResult({ result }) {
               <div className="bar-track">
                 <div className="bar-fill" style={{ width: `${(v / 10) * 100}%`, background: tag.bar }} />
               </div>
-              <div style={{ width: 24, fontSize: 14, fontWeight: 700, color: tag.bar, textAlign: "right", flexShrink: 0 }}>{v}</div>
               <span className="badge" style={{ color: tag.color, background: tag.bg, flexShrink: 0, minWidth: 76, textAlign: "center" }}>{tag.text}</span>
             </div>
           );
@@ -391,46 +390,20 @@ function EssayResult({ result }) {
         ))}
       </div>
 
-      {/* Suggestions */}
+      {/* Essay highlight */}
       {suggestions.length > 0 && (
         <div className="rcard">
-          <div className="rcard-header">Rewrite Suggestions</div>
-          {suggestions.map((s, i) => (
-            <div className="suggestion-item" key={i}>
-              <blockquote className="suggestion-quote">{s.quote}</blockquote>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#ef4444", marginBottom: 5 }}>Issue</div>
-                  <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.55 }}>{s.issue}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#10b981", marginBottom: 5 }}>Suggestion</div>
-                  <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.55 }}>{s.suggestion}</div>
-                </div>
-              </div>
-            </div>
-          ))}
+          <div className="rcard-header">✏️ Essay với highlight cần sửa</div>
+          <div style={{ padding: "16px 20px" }}>
+            <HighlightedEssay
+              fullEssay={result.full_essay_with_highlights}
+              suggestions={suggestions}
+            />
+          </div>
         </div>
       )}
 
-      {/* 3. Essay highlight + gợi ý */}
-      {suggestions.length > 0 && (
-        <>
-          <h3 style={{ margin: "0 0 12px" }}>✏️ Câu cần sửa + gợi ý thay thế</h3>
-          <HighlightedEssay
-            fullEssay={result.full_essay_with_highlights}
-            suggestions={suggestions}
-          />
-        </>
-      )}
-
-      {/* 4. Điểm mạnh / Điểm yếu */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, margin: "20px 0" }}>
-        <Card bg="#f0fdf4" title="✅ Điểm mạnh" titleColor="#15803d" items={result.strengths} />
-        <Card bg="#fff7ed" title="⚠️ Cần cải thiện" titleColor="#c2410c" items={result.weaknesses} />
-      </div>
-
-      {/* 5. Rubric chi tiết */}
+      {/* Rubric */}
       {criteria.length > 0 && (
         <div className="rcard">
           <div className="rcard-header">MIT Admissions Rubric</div>
@@ -438,9 +411,8 @@ function EssayResult({ result }) {
             const tag = scoreTag(c.score);
             return (
               <div className="rubric-row" key={i}>
-                <div style={{ flexShrink: 0, textAlign: "center", width: 36 }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: tag.bar }}>{c.score}</div>
-                  <div style={{ fontSize: 9, color: "#9ca3af" }}>/10</div>
+               <div style={{ flexShrink: 0 }}>
+                  <span className="badge" style={{ color: tag.color, background: tag.bg }}>{tag.text}</span>
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -462,12 +434,13 @@ function EssayResult({ result }) {
           <div style={{ padding: "14px 20px", display: "flex", gap: 8, flexWrap: "wrap" }}>
             {result.cliche_flags.map((c, i) => (
               <span key={i} style={{ fontSize: 12, color: "#991b1b", background: "#fef2f2", padding: "4px 12px", borderRadius: 99, fontStyle: "italic", border: "1px solid #fecaca" }}>
-                "{c}"
+                "{typeof c === "string" ? c : c.phrase}"
               </span>
             ))}
           </div>
         </div>
       )}
+
     </div>
   );
 }
