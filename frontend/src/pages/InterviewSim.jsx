@@ -82,13 +82,13 @@ export default function InterviewSim({ profile, onReport }) {
       mr.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         if (blob.size < 8000) {
-          setMicWarning("⚠️ Không nghe thấy gì. Hãy thử ghi âm lại và nói rõ hơn.");
+          setMicWarning("⚠️ Nothing detected. Please try again and speak clearly.");
           return;
         }
         setMicWarning("");
         const data = await transcribeAudio(blob);
         if (!data.transcript?.trim()) {
-          setMicWarning("⚠️ Không nhận diện được giọng nói. Hãy nói gần mic hơn và thử lại.");
+          setMicWarning("⚠️ Could not recognize speech. Move closer to the mic and try again.");
           return;
         }
         if (data.analysis) setSpeechAnalysis(data.analysis);
@@ -101,7 +101,7 @@ export default function InterviewSim({ profile, onReport }) {
       mr.start(200);
       setIsRecording(true);
     } catch (err) {
-      setMicWarning("⚠️ Không thể truy cập microphone. Kiểm tra quyền trình duyệt.");
+      setMicWarning("⚠️ Cannot access microphone. Check browser permissions.");
     }
   }
 
@@ -246,7 +246,7 @@ export default function InterviewSim({ profile, onReport }) {
       }}>
         {phase === "idle" && (
           <p style={{ color: "#9ca3af", textAlign: "center", marginTop: 100 }}>
-            Nhấn "Bắt đầu" để vào phiên phỏng vấn thử
+            Press "Start" to begin your mock interview
           </p>
         )}
 
@@ -282,14 +282,14 @@ export default function InterviewSim({ profile, onReport }) {
         {feedback && <FeedbackBanner feedback={feedback} />}
         {speechAnalysis && <SpeechAnalysisCard analysis={speechAnalysis} />}
         {loading && !isTyping && (
-          <p style={{ color: "#9ca3af", fontSize: 13, marginTop: 8 }}>Interviewer đang suy nghĩ...</p>
+          <p style={{ color: "#9ca3af", fontSize: 13, marginTop: 8 }}>Interviewer is thinking...</p>
         )}
         <div ref={bottomRef} />
       </div>
 
       {phase === "idle" && (
         <div style={{ display: "flex", justifyContent: "center" }}>
-          <Button onClick={startInterview}>Bắt đầu phỏng vấn</Button>
+          <Button onClick={startInterview}>Start Interview</Button>
         </div>
       )}
 
@@ -315,22 +315,22 @@ export default function InterviewSim({ profile, onReport }) {
 
           {isTyping && (
             <div style={{ color: "#1e40af", fontSize: 13, textAlign: "center" }}>
-              🔊 Interviewer đang nói... chờ xong rồi trả lời
+              🔊 Interviewer is speaking... wait before answering
             </div>
           )}
           {isRecording && !isTyping && (
             <div style={{ color: "#dc2626", fontSize: 13, textAlign: "center" }}>
-              ● Đang ghi âm... nhấn ⏹ để gửi
+              ● Recording... press ⏹ to send
             </div>
           )}
           {!isRecording && !isTyping && !loading && (
             <div style={{ color: "#9ca3af", fontSize: 13, textAlign: "center" }}>
-              Nhấn 🎤 để trả lời
+              Press 🎤 to answer
             </div>
           )}
           {loading && !isTyping && (
             <div style={{ color: "#6b7280", fontSize: 13, textAlign: "center" }}>
-              ⏳ Đang xử lý...
+              ⏳ Processing...
             </div>
           )}
 
@@ -350,7 +350,7 @@ export default function InterviewSim({ profile, onReport }) {
                   border: "none", borderRadius: 6, fontSize: 12, cursor: "pointer",
                 }}
               >
-                Ghi âm lại
+                Record again
               </button>
             </div>
           )}
@@ -364,7 +364,7 @@ export default function InterviewSim({ profile, onReport }) {
               borderRadius: 20, fontSize: 12, cursor: "pointer", marginTop: 4,
             }}
           >
-            Kết thúc phỏng vấn
+            End Interview
           </button>
         </div>
       )}
@@ -387,7 +387,7 @@ function ChatBubble({ role, content, isTyping }) {
       }}>
         {isAI && (
           <span style={{ fontSize: 11, opacity: 0.7, display: "block", marginBottom: 4 }}>
-            {isTyping ? "🔊 Interviewer đang nói..." : "Interviewer"}
+            {isTyping ? "🔊 Interviewer speaking..." : "Interviewer"}
           </span>
         )}
         {content}
@@ -436,13 +436,13 @@ function SpeechAnalysisCard({ analysis }) {
   const tc = toneColors[tone.tone_label] || toneColors.neutral;
   return (
     <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14, margin: "10px 0", fontSize: 13 }}>
-      <div style={{ fontWeight: 700, marginBottom: 10, color: "#1e293b" }}>🎙️ Phân tích giọng nói</div>
+      <div style={{ fontWeight: 700, marginBottom: 10, color: "#1e293b" }}>🎙️ Speech analysis</div>
       <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: tc.bg, color: tc.text, borderRadius: 20, padding: "3px 12px", fontWeight: 600, marginBottom: 10, fontSize: 12 }}>
         {tc.emoji} {tone.tone_label?.replace(/_/g, " ").toUpperCase()}
       </div>
       {tone.tone_summary && <div style={{ color: "#475569", marginBottom: 10 }}>{tone.tone_summary}</div>}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-        {[["Nhiệt huyết", tone.enthusiasm_score], ["Tự tin", tone.confidence_score], ["Rõ ràng", tone.clarity_score]].map(([label, score]) =>
+        {[["Enthusiasm", tone.enthusiasm_score], ["Confidence", tone.confidence_score], ["Clarity", tone.clarity_score]].map(([label, score]) =>
           score != null && (
             <div key={label} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "4px 10px", textAlign: "center" }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: score >= 7 ? "#16a34a" : score >= 5 ? "#d97706" : "#dc2626" }}>{score}/10</div>
@@ -453,7 +453,7 @@ function SpeechAnalysisCard({ analysis }) {
       </div>
       {(analysis.pronunciation_issues || []).length > 0 && (
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>⚠️ Phát âm cần chú ý:</div>
+          <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>⚠️ Pronunciation issues:</div>
           {analysis.pronunciation_issues.map((p, i) => (
             <div key={i} style={{ background: "#fff7ed", borderLeft: "3px solid #f97316", borderRadius: "0 6px 6px 0", padding: "5px 10px", marginBottom: 4 }}>
               <strong>"{p.word}"</strong> — {p.issue}. Thử: <em>{p.suggestion}</em>
@@ -488,7 +488,7 @@ function InterviewReport({ report }) {
   const col    = signalMap[signal];
   return (
     <div style={{ background: "#f0f9ff", borderRadius: 12, padding: 20, marginTop: 20 }}>
-      <h3 style={{ margin: "0 0 16px" }}>Kết quả phỏng vấn</h3>
+      <h3 style={{ margin: "0 0 16px" }}>Interview Results</h3>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 60, fontWeight: 700, color: "#1e40af", lineHeight: 1 }}>{report.overall_score}</div>
@@ -497,7 +497,7 @@ function InterviewReport({ report }) {
         {report.admission_likelihood_percent != null && (
           <div>
             <div style={{ fontSize: 40, fontWeight: 700, color: "#7c3aed", lineHeight: 1 }}>{report.admission_likelihood_percent}%</div>
-            <div style={{ fontSize: 12, color: "#6b7280" }}>Khả năng đậu</div>
+            <div style={{ fontSize: 12, color: "#6b7280" }}>Admission likelihood</div>
           </div>
         )}
         <span style={{ background: col.bg, color: col.text, padding: "5px 14px", borderRadius: 20, fontWeight: 600 }}>
@@ -509,14 +509,14 @@ function InterviewReport({ report }) {
       </div>
       {report.intro_assessment && (
         <div style={{ background: "#eff6ff", borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 14 }}>
-          <strong>🎯 Đánh giá phần giới thiệu:</strong>
+          <strong>🎯 Introduction assessment:</strong>
           <p style={{ margin: "6px 0 0", color: "#374151" }}>{report.intro_assessment}</p>
         </div>
       )}
       {report.summary && <p style={{ color: "#374151", marginBottom: 14, fontSize: 14 }}>{report.summary}</p>}
       {(report.top_moments || []).length > 0 && (
         <div style={{ marginBottom: 14 }}>
-          <strong style={{ fontSize: 14 }}>✨ Điểm sáng:</strong>
+          <strong style={{ fontSize: 14 }}>✨ Highlights:</strong>
           <ul style={{ paddingLeft: 20, marginTop: 6 }}>
             {report.top_moments.map((m, i) => <li key={i} style={{ marginBottom: 6, fontSize: 14, color: "#15803d" }}>{m}</li>)}
           </ul>
@@ -524,7 +524,7 @@ function InterviewReport({ report }) {
       )}
       {(report.improvement_tips || []).length > 0 && (
         <div style={{ marginBottom: 14 }}>
-          <strong style={{ fontSize: 14 }}>📌 Cần cải thiện:</strong>
+          <strong style={{ fontSize: 14 }}>📌 Areas to improve:</strong>
           <ul style={{ paddingLeft: 20, marginTop: 6 }}>
             {report.improvement_tips.map((tip, i) => <li key={i} style={{ marginBottom: 6, fontSize: 14 }}>{tip}</li>)}
           </ul>
@@ -532,7 +532,7 @@ function InterviewReport({ report }) {
       )}
       {(report.next_steps || []).length > 0 && (
         <div>
-          <strong style={{ fontSize: 14 }}>🚀 Bước tiếp theo:</strong>
+          <strong style={{ fontSize: 14 }}>🚀 Next steps:</strong>
           <ul style={{ paddingLeft: 20, marginTop: 6 }}>
             {report.next_steps.map((s, i) => <li key={i} style={{ marginBottom: 6, fontSize: 14 }}>{s}</li>)}
           </ul>
