@@ -219,23 +219,28 @@ const css = `
   .icmt-body { padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
   .icmt-sec { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; margin-bottom:3px; }
   .icmt-txt { font-size:13px; color:#374151; line-height:1.6; margin:0; }
-  .nav-btn {
+  .cmt-nav-btn {
     flex:1; padding:6px; border:1px solid #e5e7eb; border-radius:6px;
     background:white; font-size:12px; cursor:pointer; color:#374151;
     font-family:inherit; transition:background .15s;
   }
-  .nav-btn:hover:not(:disabled) { background:#f3f4f6; }
-  .nav-btn:disabled { opacity:.35; cursor:not-allowed; }
+  .cmt-nav-btn:hover:not(:disabled) { background:#f3f4f6; }
+  .cmt-nav-btn:disabled { opacity:.35; cursor:not-allowed; }
 
   .hint-pill {
-    display:inline-flex; align-items:center; gap:6px;
-    background:#fffbeb; border:1px solid #fde68a; border-radius:99px;
-    padding:4px 12px; font-size:11.5px; color:#92400e;
-    font-weight:500; margin-bottom:18px; text-align:left;
+    display:inline-flex; align-items:center; gap:10px;
+    background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border:1.5px solid #fde68a; border-radius:12px;
+    padding:10px 16px; font-size:12.5px; color:#92400e;
+    font-weight:600; margin-bottom:20px; text-align:left;
+    box-shadow:0 2px 8px rgba(245,158,11,.15);
   }
   .hint-dot {
-    width:10px; height:10px; border-radius:2px;
-    background:#fef08a; border:1.5px solid #f59e0b; flex-shrink:0;
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:8px; flex-shrink:0;
+    background:linear-gradient(135deg,#fbbf24,#f59e0b);
+    box-shadow:0 2px 6px rgba(245,158,11,.4);
+    font-size:13px;
   }
 `;
 
@@ -382,8 +387,11 @@ function HighlightedEssay({ fullEssay, suggestions }) {
     <div className="essay-body">
       {totalHL > 0 && (
         <div className="hint-pill">
-          <span className="hint-dot" />
-          {totalHL} section{totalHL !== 1 ? "s" : ""} marked for revision — click to view feedback
+          <span className="hint-dot">✏️</span>
+          <span>
+            <strong>{totalHL} section{totalHL !== 1 ? "s" : ""}</strong> marked for revision
+            <span style={{ fontWeight:400, opacity:.8 }}> — click the highlighted text to view feedback</span>
+          </span>
         </div>
       )}
 
@@ -428,8 +436,8 @@ function HighlightedEssay({ fullEssay, suggestions }) {
                   </div>
                   {totalHL > 1 && (
                     <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6" }}>
-                      <button className="nav-btn" onClick={() => setOpenIdx(i => Math.max(0, i - 1))} disabled={openIdx === 0}>← Previous</button>
-                      <button className="nav-btn" onClick={() => setOpenIdx(i => Math.min(totalHL - 1, i + 1))} disabled={openIdx === totalHL - 1}>Next →</button>
+                      <button className="cmt-nav-btn" onClick={() => setOpenIdx(i => Math.max(0, i - 1))} disabled={openIdx === 0}>← Previous</button>
+                      <button className="cmt-nav-btn" onClick={() => setOpenIdx(i => Math.min(totalHL - 1, i + 1))} disabled={openIdx === totalHL - 1}>Next →</button>
                     </div>
                   )}
                 </div>
@@ -457,10 +465,6 @@ function EssayResult({ result, schoolName }) {
       <div style={{ background: "#111827", borderRadius: 12, padding: "24px 28px", display: "flex", gap: 28, alignItems: "center" }}>
         <div style={{ flexShrink: 0, textAlign: "center" }}>
           <div style={{ fontSize: 36, fontWeight: 800, color: ovTag.bar, lineHeight: 1 }}>
-            {typeof overall === "number" ? overall.toFixed(1) : overall}
-            <span style={{ fontSize: 16, fontWeight: 400, color: "#4b5563" }}>/10</span>
-          </div>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: ovTag.bar, marginTop: 6 }}>
             {ovTag.text}
           </div>
         </div>
@@ -481,7 +485,6 @@ function EssayResult({ result, schoolName }) {
               <div className="btrack">
                 <div className="bfill" style={{ width: `${(v / 10) * 100}%`, background: tag.bar }} />
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", flexShrink: 0 }}>{v}/10</span>
               <span className="badge" style={{ color: tag.color, background: tag.bg }}>{tag.text}</span>
             </div>
           );
@@ -528,7 +531,9 @@ function EssayResult({ result, schoolName }) {
             return (
               <div className="rrow" key={i}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{c.criterion}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                    {SCORE_LABELS[c.criterion] || c.criterion.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                  </span>
                   <span className="badge" style={{ color: tag.color, background: tag.bg }}>{tag.text}</span>
                 </div>
                 <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.6 }}>{c.comment}</p>
