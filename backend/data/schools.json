@@ -23,13 +23,17 @@
       "Public spiritedness"
     ],
     "interview_questions": [
-      "Tell me about a project where you built or created something from scratch.",
-      "Describe a time you failed. What did you learn?",
-      "How do you approach a problem you've never seen before?",
-      "What's a subject outside your major that genuinely excites you and why?",
-      "Tell me about a collaboration that challenged you.",
-      "What do you want to change about the world, and how does MIT help you do that?",
-      "Describe your most meaningful extracurricular activity and its impact."
+      "Tell me about yourself?",
+      "Why do you choose MIT",
+      "What makes you a strong candidate for MIT?",
+      "What is a problem in the world you want to solve, and how will an MIT education help you do it?",
+      "If you could create a new course at MIT, what would it be and why?",
+      "Tell me about a time you failed. How did you handle it, and what did you learn?",
+      "What is the most difficult thing you've ever ha to learn on your own?",
+      "Tell me about your project you worked on just because you were curious, not because it was for a grade",
+      "Tell me about time you had a conflict within a team. How did you resolve it?",
+      "What is one way you have contributed to your community (school, town, or family)",
+      "How do you handle it when you are the smartest person in the room? How do you handle it when you aren't "
     ],
     "major_specific_notes": {
       "Computer Science": "Look for algorithmic thinking, personal projects, open source contributions",

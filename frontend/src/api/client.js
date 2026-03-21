@@ -38,9 +38,8 @@ export const interviewAsk = (schoolName, studentProfile, conversationHistory, us
     student_profile: studentProfile,
     conversation_history: conversationHistory,
     user_answer: userAnswer,
-    voice_enabled: false,
+    voice_enabled: true,   // ← đổi từ false thành true
   });
-
 export const speakQuestion = async (text) => {
   const res = await fetch("/interview/speak", {
     method: "POST",
@@ -51,6 +50,16 @@ export const speakQuestion = async (text) => {
   return URL.createObjectURL(blob);
 };
 
+export const transcribeAudio = async (audioBlob) => {
+  const formData = new FormData();
+  formData.append("audio", audioBlob, "answer.webm");
+  const res = await fetch("/interview/transcribe", {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) throw new Error(`Transcribe error: ${res.status}`);
+  return res.json();
+};
 export const endInterview = (schoolName, conversationHistory) =>
   post("/interview/report", {
     school_name: schoolName,

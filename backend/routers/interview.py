@@ -57,14 +57,17 @@ async def interview_ask(req: InterviewTurnRequest):
         "score_on_previous": ai_response.get("score_on_previous"),
         "interview_phase": ai_response.get("interview_phase", "middle"),
         "audio_url": None,
+        "audio_base64": None, 
     }
 
     # If voice enabled, generate audio and return URL
     if req.voice_enabled and result["question"]:
-        # Option A (simple): generate audio synchronously, return as base64
-        # Option B (better): save audio file, return URL — implement after demo
-        # For demo: skip audio or implement Option A below
-        pass
+        try:
+            import base64
+            audio_bytes = await text_to_speech(result["question"])
+            result["audio_base64"] = base64.b64encode(audio_bytes).decode("utf-8")
+        except Exception as e:
+            print(f"[ElevenLabs error] {e}")
 
     return JSONResponse(content=result)
 
@@ -92,16 +95,28 @@ async def speak_question(body: dict):
 # ── SECONDARY: Voice input (student speaks answer) ──────────────────────────
 @router.post("/transcribe")
 async def transcribe_student_answer(audio: UploadFile = File(...)):
-    """
-    PSEUDOCODE:
-    1. Receive audio blob from browser (MediaRecorder API → webm/mp4)
-    2. Pass to OpenAI Whisper for transcription
-    3. Return text — frontend then calls /ask with this text
-    """
-    audio_bytes = await audio.read()
-    transcript = await transcribe_audio(audio_bytes, filename=audio.filename)
-    return {"transcript": transcript}
+    if not audio.filename:
+        audio.filename = "answer.webm"
 
+    audio_bytes = await audio.read()
+
+    if len(audio_bytes) < 8000:
+        return JSONResponse({"transcript": "", "warning": "Audio too short", "analysis": None})
+
+    try:
+        # Dùng GPT-4o Audio — vừa transcribe vừa phân tích
+        from services.openai_service import analyze_speech
+        analysis = await analyze_speech(audio_bytes, filename=audio.filename)
+        return JSONResponse({
+            "transcript": analysis.get("transcript", ""),
+            "analysis": analysis,
+        })
+    except Exception as e:
+        # Fallback về Whisper nếu GPT-4o Audio lỗi
+        print(f"[GPT-4o Audio error, falling back to Whisper] {e}")
+        from services.openai_service import transcribe_audio
+        transcript = await transcribe_audio(audio_bytes, filename=audio.filename)
+        return JSONResponse({"transcript": transcript, "analysis": None})
 
 # ── SECONDARY: Full interview report ────────────────────────────────────────
 @router.post("/report")
