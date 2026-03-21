@@ -548,23 +548,32 @@ function InterviewReport({ report, onRetry }) {
   return (
     <div style={{ background: "#f0f9ff", borderRadius: 12, padding: 20, marginTop: 20 }}>
       <h3 style={{ margin: "0 0 16px" }}>Interview Results</h3>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: 60, fontWeight: 700, color: "#1e40af", lineHeight: 1 }}>{report.overall_score}</div>
-          <div style={{ fontSize: 12, color: "#6b7280" }}>Overall score</div>
-        </div>
+      {/* Overall score + admission — essay style */}
+      <div style={{ background: "#111827", borderRadius: 12, padding: "20px 24px", display: "flex", gap: 24, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
+        {(() => {
+          const s = report.overall_score;
+          const tag = s >= 80 ? { text: "Excellent", color: "#10b981" }
+                    : s >= 60 ? { text: "Good",      color: "#f59e0b" }
+                    : s >= 40 ? { text: "Average",   color: "#f97316" }
+                    :           { text: "Needs Work", color: "#ef4444" };
+          return (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 32, fontWeight: 800, color: tag.color, lineHeight: 1 }}>{tag.text}</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>Overall</div>
+            </div>
+          );
+        })()}
+        <div style={{ width: 1, height: 48, background: "#2d3748", flexShrink: 0 }} />
         {report.admission_likelihood_percent != null && (
-          <div>
-            <div style={{ fontSize: 40, fontWeight: 700, color: "#7c3aed", lineHeight: 1 }}>{report.admission_likelihood_percent}%</div>
-            <div style={{ fontSize: 12, color: "#6b7280" }}>Admission likelihood</div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "#7c3aed", lineHeight: 1 }}>{report.admission_likelihood_percent}%</div>
+            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>Admission likelihood</div>
           </div>
         )}
-        <span style={{ background: col.bg, color: col.text, padding: "5px 14px", borderRadius: 20, fontWeight: 600 }}>
+        <div style={{ width: 1, height: 48, background: "#2d3748", flexShrink: 0 }} />
+        <span style={{ background: col.bg, color: col.text, padding: "5px 14px", borderRadius: 20, fontWeight: 600, fontSize: 13 }}>
           {signal.toUpperCase()} signal
         </span>
-      </div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-        {Object.entries(dims).map(([k, v]) => <ScorePill key={k} label={k.replace(/_/g, " ")} score={v} />)}
       </div>
       {report.intro_assessment && (
         <div style={{ background: "#eff6ff", borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 14 }}>
