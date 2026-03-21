@@ -87,7 +87,8 @@ Analyze the audio and return JSON with exactly these fields:
     "is_complete": <true|false, did they finish their thought or trail off>,
     "suggested_improvement": "<1 specific tip to improve this answer>"
   },
-  "overall_speech_tip": "<1 actionable tip for their next answer>"
+  "overall_speech_tip": "<1 actionable tip for their next answer>",
+  "detected_language": "<the language the person is speaking, e.g. english, vietnamese, chinese, etc>"
 }
 
 Be honest but encouraging. Focus on patterns, not every small mistake."""
