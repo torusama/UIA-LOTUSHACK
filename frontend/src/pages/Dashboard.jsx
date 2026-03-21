@@ -1,278 +1,178 @@
-import { useState } from "react";
-import { scoreProfile, matchScholarships, getExecutiveSummary } from "../api/client";
-import { ScoreBar } from "../components/ScoreDisplay";
-import { Button, Tag } from "../components/Button";
+import ReadinessDashboard from "../components/ReadinessDashboard";
+
+// ── Map live profile + API scores → ReadinessDashboard shape ──────────────
+// Essay API returns:  { scores: { clarity_of_story, authenticity, school_fit, originality, overall (1-10) }, strengths[], weaknesses[], paragraph_suggestions[] }
+// Interview API returns: { overall_score (1-100), dimension_scores: { self_introduction, motivation_clarity, communication, authenticity, school_fit, resilience_grit (1-10) }, top_moments[], weak_moments[], improvement_tips[] }
+// Profile API (scoreResult) returns: { overall_score, breakdown: { GPA, SAT, IELTS, Extracurricular, Essay }, tier, estimated_probability }
+
+function scale(val, fromMax, toMax) {
+  return Math.round((val / fromMax) * toMax);
+}
+
+function buildReadinessResult(profile, essayScore, interviewScore) {
+  const gpa = parseFloat(profile.gpa) || 0;
+  const sat = parseFloat(profile.sat) || 0;
+  const ielts = parseFloat(profile.ielts) || 0;
+
+  // Hard Factors — same thang diem nhu doc trong UniMatchAI_ProjectDoc.pdf
+  const gpaPoints = gpa >= 3.9 ? 15 : gpa >= 3.7 ? 10 : gpa >= 3.5 ? 5 : 2;
+  const satPoints = sat >= 1550 ? 10 : sat >= 1510 ? 7 : sat >= 1450 ? 4 : 1;
+  const ieltsPoints =
+    ielts >= 7.5 ? 10 : ielts >= 7.0 ? 7 : ielts >= 6.5 ? 4 : 1;
+  const hardTotal = gpaPoints + satPoints + ieltsPoints;
+
+  // Extracurricular — from activity_categories selected in ProfileBar
+  const cats = profile.activity_categories || [];
+  const ecScore = Math.min(
+    20,
+    cats.length >= 1 ? 8 + (cats.length - 1) * 4 : 0,
+  );
+
+  // Essay — map actual API fields to our 5 criteria (scale 1-10 → 0-5)
+  const es = essayScore?.scores || {};
+  const essayCriteria = [
+    {
+      label: "Authentic Voice",
+      score: es.authenticity ? scale(es.authenticity, 10, 5) : 0,
+      max: 5,
+    },
+    {
+      label: "Depth & Specificity",
+      score: es.clarity_of_story ? scale(es.clarity_of_story, 10, 5) : 0,
+      max: 5,
+    },
+    {
+      label: "School Fit",
+      score: es.school_fit ? scale(es.school_fit, 10, 5) : 0,
+      max: 5,
+    },
+    {
+      label: "Structure & Flow",
+      score: es.overall ? scale(es.overall, 10, 5) : 0,
+      max: 5,
+    },
+    {
+      label: "Hook & Originality",
+      score: es.originality ? scale(es.originality, 10, 5) : 0,
+      max: 5,
+    },
+  ];
+  const essayTotal = essayScore ? Math.round(((es.overall || 0) / 10) * 25) : 0;
+
+  // Interview — map actual API fields to our 4 criteria (scale 1-10 → 0-5)
+  const ds = interviewScore?.dimension_scores || {};
+  const ivCriteria = [
+    {
+      label: "Clear Communication",
+      score: ds.communication ? scale(ds.communication, 10, 5) : 0,
+      max: 5,
+    },
+    {
+      label: "Intellectual Curiosity",
+      score: ds.motivation_clarity ? scale(ds.motivation_clarity, 10, 5) : 0,
+      max: 5,
+    },
+    {
+      label: "Personal Authenticity",
+      score: ds.authenticity ? scale(ds.authenticity, 10, 5) : 0,
+      max: 5,
+    },
+    {
+      label: "School Fit",
+      score: ds.school_fit ? scale(ds.school_fit, 10, 5) : 0,
+      max: 5,
+    },
+  ];
+  const ivTotal = interviewScore
+    ? Math.round(((interviewScore.overall_score || 0) / 100) * 20)
+    : 0;
+
+  // Essay feedback — strengths from API, improvements from paragraph_suggestions
+  const essayStrengths = essayScore?.strengths?.length
+    ? essayScore.strengths.slice(0, 3)
+    : ["Complete the Essay tab to see detailed feedback."];
+
+  const essayImprovements = essayScore?.paragraph_suggestions?.length
+    ? essayScore.paragraph_suggestions.map((s, i) => ({
+        priority: i === 0 ? "high" : i === 1 ? "high" : "medium",
+        title: s.issue || "Improvement needed",
+        body: s.suggestion || "",
+      }))
+    : essayScore?.weaknesses?.length
+      ? essayScore.weaknesses.map((w, i) => ({
+          priority: i === 0 ? "high" : "medium",
+          title: w.length > 60 ? w.slice(0, 57) + "..." : w,
+          body: w,
+        }))
+      : [
+          {
+            priority: "medium",
+            title: "Complete the Essay tab",
+            body: "Submit an essay to receive detailed feedback here.",
+          },
+        ];
+
+  // Interview feedback — strengths from top_moments, improvements from improvement_tips + weak_moments
+  const ivStrengths = interviewScore?.top_moments?.length
+    ? interviewScore.top_moments.slice(0, 2)
+    : ["Complete the Interview tab to see detailed feedback."];
+
+  const ivImprovements = interviewScore?.improvement_tips?.length
+    ? interviewScore.improvement_tips.map((tip, i) => ({
+        priority: i === 0 ? "high" : i === 1 ? "medium" : "low",
+        title: tip.length > 60 ? tip.slice(0, 57) + "..." : tip,
+        body: tip,
+      }))
+    : [
+        {
+          priority: "medium",
+          title: "Complete the Interview tab",
+          body: "Finish a mock interview to receive detailed feedback here.",
+        },
+      ];
+
+  const total = Math.min(100, hardTotal + ecScore + essayTotal + ivTotal);
+
+  return {
+    student: {
+      name: profile.name || "Student",
+      targetSchool: profile.school_name || "MIT",
+      applyYear: new Date().getFullYear() + 1,
+    },
+    scores: {
+      total,
+      hardFactors: {
+        score: hardTotal,
+        max: 35,
+        gpa: { val: gpa, pts: gpaPoints },
+        sat: { val: sat, pts: satPoints },
+        ielts: { val: ielts, pts: ieltsPoints },
+      },
+      extracurricular: {
+        score: ecScore,
+        max: 20,
+        activities: cats.map((c, i) => ({
+          name: c,
+          tier: i === 0 ? 1 : i === 1 ? 2 : 3,
+        })),
+      },
+      essay: { score: essayTotal, max: 25, criteria: essayCriteria },
+      interview: { score: ivTotal, max: 20, criteria: ivCriteria },
+    },
+    essayFeedback: {
+      strengths: essayStrengths,
+      improvements: essayImprovements,
+    },
+    interviewFeedback: { strengths: ivStrengths, improvements: ivImprovements },
+  };
+}
 
 export default function Dashboard({ profile, essayScore, interviewScore }) {
-  const [summary, setSummary]         = useState(null);
-  const [scoreResult, setScoreResult] = useState(null);
-  const [scholarships, setScholarships] = useState(null);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState(null);
-
-  async function handleAnalyze() {
-    setLoading(true); setError(null);
-    try {
-      const school = profile.school_name || "MIT";
-      const [scoreData, scholarData, summaryData] = await Promise.all([
-        scoreProfile(school, profile, essayScore, interviewScore),
-        matchScholarships(school, profile, essayScore),
-        getExecutiveSummary(school, profile, essayScore, interviewScore),
-      ]);
-      setScoreResult(scoreData);
-      setScholarships(scholarData);
-      setSummary(summaryData);
-    } catch (e) {
-      setError("Lỗi kết nối. Kiểm tra backend đang chạy.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const school = profile.school_name || "MIT";
-
   return (
     <section>
-      <h2 style={{ marginBottom: 6 }}>Admission Dashboard — {school}</h2>
-      <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 20 }}>
-        Điền đầy đủ hồ sơ ở trên, hoàn thành Essay & Interview để có kết quả chính xác nhất.
-      </p>
-
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-        <Tag color={essayScore ? "#dcfce7" : "#f3f4f6"} textColor={essayScore ? "#15803d" : "#6b7280"}>
-          {essayScore ? "✓" : "○"} Essay
-        </Tag>
-        <Tag color={interviewScore ? "#dcfce7" : "#f3f4f6"} textColor={interviewScore ? "#15803d" : "#6b7280"}>
-          {interviewScore ? "✓" : "○"} Interview
-        </Tag>
-      </div>
-
-      <Button onClick={handleAnalyze} disabled={loading}>
-        {loading ? "Đang phân tích toàn bộ hồ sơ..." : "🔍 Phân tích hồ sơ"}
-      </Button>
-
-      {error && <p style={{ color: "#dc2626", marginTop: 10, fontSize: 14 }}>{error}</p>}
-
-      {summary && <ExecutiveSummary data={summary} school={school} />}
-      {scoreResult && <ScoreSection data={scoreResult} essayScore={essayScore} interviewScore={interviewScore} />}
-      {scholarships && <ScholarshipSection data={scholarships} />}
+      <ReadinessDashboard
+        result={buildReadinessResult(profile, essayScore, interviewScore)}
+      />
     </section>
-  );
-}
-
-// ── Executive Summary ──────────────────────────────────────────────────────
-function ExecutiveSummary({ data, school }) {
-  const verdictConfig = {
-    Reach:  { bg: "#fee2e2", color: "#dc2626" },
-    Match:  { bg: "#fef9c3", color: "#92400e" },
-    Safety: { bg: "#dcfce7", color: "#15803d" },
-  };
-  const vc = verdictConfig[data.verdict] || verdictConfig["Reach"];
-
-  return (
-    <div style={{ background: "#f8faff", border: "2px solid #bfdbfe", borderRadius: 14, padding: 24, marginTop: 28 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 18, color: "#1e40af" }}>📋 Executive Summary</h2>
-        <span style={{ background: vc.bg, color: vc.color, padding: "4px 16px", borderRadius: 20, fontWeight: 700, fontSize: 14 }}>
-          {data.verdict}
-        </span>
-        <span style={{ background: "#f3f4f6", color: "#374151", padding: "4px 16px", borderRadius: 20, fontWeight: 600, fontSize: 14 }}>
-          {data.overall_strength}
-        </span>
-      </div>
-
-      {data.top_insights && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>🔑 Key Insights</div>
-          {data.top_insights.map((insight, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 14 }}>
-              <span style={{ color: "#3b82f6", fontWeight: 700 }}>→</span>
-              <span>{insight}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-        {data.biggest_strength && (
-          <div style={{ background: "#f0fdf4", borderRadius: 10, padding: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#15803d", marginBottom: 6 }}>✅ Điểm mạnh lớn nhất</div>
-            <div style={{ fontSize: 14, color: "#374151" }}>{data.biggest_strength}</div>
-          </div>
-        )}
-        {data.biggest_gap && (
-          <div style={{ background: "#fff7ed", borderRadius: 10, padding: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#c2410c", marginBottom: 6 }}>⚠️ Điểm cần cải thiện</div>
-            <div style={{ fontSize: 14, color: "#374151" }}>{data.biggest_gap}</div>
-          </div>
-        )}
-      </div>
-
-      {data.recommendation && (
-        <div style={{ background: "#eff6ff", borderRadius: 10, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8", marginBottom: 6 }}>💡 Chiến lược đề xuất</div>
-          <div style={{ fontSize: 14, color: "#374151" }}>{data.recommendation}</div>
-        </div>
-      )}
-
-      {data.action_plan && data.action_plan.length > 0 && (
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>📌 Action Plan</div>
-          {data.action_plan.map((action, i) => (
-            <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: "1px solid #e5e7eb", fontSize: 14 }}>
-              <span style={{ background: "#1e40af", color: "white", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>{i + 1}</span>
-              {action}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Score Section ──────────────────────────────────────────────────────────
-function ScoreSection({ data, essayScore, interviewScore }) {
-  const tierConfig = {
-    reach:  { bg: "#fee2e2", text: "#dc2626" },
-    match:  { bg: "#fef9c3", text: "#92400e" },
-    safety: { bg: "#dcfce7", text: "#15803d" },
-  };
-  const tc = tierConfig[data.tier || "reach"];
-
-  return (
-    <div style={{ marginTop: 28 }}>
-      <h3 style={{ marginBottom: 16 }}>📊 Phân tích chi tiết — {data.school}</h3>
-
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginBottom: 24 }}>
-        <div>
-          <div style={{ fontSize: 64, fontWeight: 700, color: "#1e40af", lineHeight: 1 }}>
-            {data.estimated_probability}%
-          </div>
-          <div style={{ color: "#6b7280", fontSize: 13 }}>
-            Xác suất trúng tuyển ước tính (Acceptance rate: {data.acceptance_rate}%)
-          </div>
-        </div>
-        <span style={{ background: tc.bg, color: tc.text, padding: "6px 18px", borderRadius: 20, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>
-          {(data.tier || "reach").toUpperCase()}
-        </span>
-      </div>
-
-      <h4 style={{ marginBottom: 12 }}>Điểm từng tiêu chí</h4>
-      {data.breakdown && Object.entries(data.breakdown).map(([name, info]) => (
-        <div key={name} style={{ marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-            <span style={{ fontWeight: 500 }}>{name}</span>
-            <span style={{ color: "#6b7280" }}>
-              {info.your_value && `Của bạn: ${info.your_value} / Yêu cầu: ${info.required} — `}
-              {info.note && `${info.note} — `}
-              <strong>{info.score}/100</strong>
-            </span>
-          </div>
-          <ScoreBar label="" value={info.score} />
-        </div>
-      ))}
-
-      {data.top_gaps && data.top_gaps.length > 0 && (
-        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: 14, marginTop: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#c2410c", marginBottom: 8 }}>🚨 Điểm yếu cần cải thiện</div>
-          {data.top_gaps.map((gap, i) => (
-            <div key={i} style={{ fontSize: 14, marginBottom: 4 }}>• {gap}</div>
-          ))}
-        </div>
-      )}
-
-      {essayScore?.scores && <Breakdown title="Essay — chi tiết" scores={essayScore.scores} max={10} />}
-      {interviewScore?.dimension_scores && <Breakdown title="Interview — chi tiết" scores={interviewScore.dimension_scores} max={10} />}
-    </div>
-  );
-}
-
-function Breakdown({ title, scores, max }) {
-  return (
-    <div style={{ marginTop: 24 }}>
-      <h4 style={{ marginBottom: 12 }}>{title}</h4>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {Object.entries(scores).map(([k, v]) => (
-          <div key={k} style={{ background: "#f3f4f6", borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
-            <div style={{ fontWeight: 700, fontSize: 18 }}>{v}/{max}</div>
-            <div style={{ fontSize: 11, color: "#6b7280", textTransform: "capitalize", marginTop: 2 }}>
-              {k.replace(/_/g, " ")}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Scholarships ───────────────────────────────────────────────────────────
-function ScholarshipSection({ data }) {
-  const potentialColor = (p) => {
-    if (p === "Full potential") return { bg: "#dcfce7", color: "#15803d" };
-    if (p === "Partial") return { bg: "#fef9c3", color: "#92400e" };
-    return { bg: "#f3f4f6", color: "#6b7280" };
-  };
-
-  return (
-    <div style={{ marginTop: 32 }}>
-      <h3 style={{ marginBottom: 6 }}>🏆 Học bổng phù hợp</h3>
-      <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 16 }}>{data.summary}</p>
-
-      {data.school_scholarships?.length > 0 && (
-        <>
-          <h4 style={{ marginBottom: 12, color: "#374151" }}>Học bổng của trường</h4>
-          {data.school_scholarships.map((s, i) => {
-            const pc = potentialColor(s.potential);
-            return (
-              <div key={i} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 15 }}>{s.name}</div>
-                    <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>{s.amount}</div>
-                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{s.criteria}</div>
-                  </div>
-                  <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
-                    <span style={{ background: pc.bg, color: pc.color, padding: "4px 12px", borderRadius: 12, fontSize: 12, fontWeight: 700, display: "block", marginBottom: 6 }}>
-                      {s.potential}
-                    </span>
-                    <span style={{ fontSize: 12, color: "#6b7280" }}>Fit: {s.fit_score}/100</span>
-                  </div>
-                </div>
-                {s.notes?.length > 0 && (
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #f3f4f6" }}>
-                    {s.notes.map((n, j) => (
-                      <span key={j} style={{ background: "#eff6ff", color: "#1d4ed8", fontSize: 12, borderRadius: 6, padding: "2px 8px", marginRight: 6 }}>{n}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </>
-      )}
-
-      {data.external_scholarships?.length > 0 && (
-        <>
-          <h4 style={{ marginTop: 20, marginBottom: 12, color: "#374151" }}>Học bổng bên ngoài</h4>
-          {data.external_scholarships.map((s, i) => {
-            const pc = potentialColor(s.potential);
-            return (
-              <div key={i} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 15 }}>{s.name}</div>
-                    <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>{s.amount}</div>
-                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{s.criteria}</div>
-                  </div>
-                  <span style={{ background: pc.bg, color: pc.color, padding: "4px 12px", borderRadius: 12, fontSize: 12, fontWeight: 700, alignSelf: "flex-start" }}>
-                    {s.potential}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </>
-      )}
-    </div>
   );
 }
