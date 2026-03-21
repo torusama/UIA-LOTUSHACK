@@ -1,30 +1,132 @@
 import { useState } from "react";
 
 const FIELDS = [
-  { key: "name",        label: "Full Name",   placeholder: "e.g. Alex Nguyen",  type: "text" },
-  { key: "gpa",         label: "GPA",          placeholder: "0 – 4.0",            type: "number", min: 0, max: 4.0,  step: 0.01,
-    validate: (v) => v < 0 ? "Cannot be negative" : v > 4.0 ? "Maximum is 4.0" : null },
-  { key: "sat",         label: "SAT",          placeholder: "400 – 1600",         type: "number", min: 400, max: 1600, step: 10,
-    validate: (v) => v < 400 ? "Minimum is 400" : v > 1600 ? "Maximum is 1600" : null },
-  { key: "ielts",       label: "IELTS",        placeholder: "0 – 9.0",            type: "number", min: 0, max: 9.0,  step: 0.5,
-    validate: (v) => v < 0 ? "Cannot be negative" : v > 9.0 ? "Maximum is 9.0" : null },
-  { key: "act",         label: "ACT",          placeholder: "1 – 36",             type: "number", min: 1, max: 36,   step: 1,
-    validate: (v) => v < 1 ? "Minimum is 1" : v > 36 ? "Maximum is 36" : null },
-  { key: "major",       label: "Major",    placeholder: "Computer Science", type: "text", readonly: true },
-  { key: "school_name", label: "School", placeholder: "MIT",               type: "text", readonly: true },
+  {
+    key: "name",
+    label: "Full Name",
+    placeholder: "e.g. Alex Nguyen",
+    type: "text",
+  },
+  {
+    key: "gpa",
+    label: "GPA",
+    placeholder: "0 – 4.0",
+    type: "number",
+    min: 0,
+    max: 4.0,
+    step: 0.01,
+    validate: (v) =>
+      v < 0 ? "Cannot be negative" : v > 4.0 ? "Maximum is 4.0" : null,
+  },
+  {
+    key: "sat",
+    label: "SAT",
+    placeholder: "400 – 1600",
+    type: "number",
+    min: 400,
+    max: 1600,
+    step: 10,
+    validate: (v) =>
+      v < 400 ? "Minimum is 400" : v > 1600 ? "Maximum is 1600" : null,
+  },
+  {
+    key: "ielts",
+    label: "IELTS",
+    placeholder: "0 – 9.0",
+    type: "number",
+    min: 0,
+    max: 9.0,
+    step: 0.5,
+    validate: (v) =>
+      v < 0 ? "Cannot be negative" : v > 9.0 ? "Maximum is 9.0" : null,
+  },
+  {
+    key: "act",
+    label: "ACT",
+    placeholder: "1 – 36",
+    type: "number",
+    min: 1,
+    max: 36,
+    step: 1,
+    validate: (v) => (v < 1 ? "Minimum is 1" : v > 36 ? "Maximum is 36" : null),
+  },
+  {
+    key: "major",
+    label: "Major",
+    placeholder: "Computer Science",
+    type: "text",
+    readonly: true,
+  },
+  {
+    key: "school_name",
+    label: "School",
+    placeholder: "MIT",
+    type: "text",
+    readonly: true,
+  },
 ];
 
 const ACTIVITY_CATEGORIES = [
-  { id: "academic",     emoji: "🎓", label: "Academic",            desc: "Olympiad, academic competitions, scholarships" },
-  { id: "research",     emoji: "🔬", label: "Research",           desc: "Research project, paper, lab internship" },
-  { id: "leadership",   emoji: "👑", label: "Leadership",             desc: "Club president, student council, team captain" },
-  { id: "volunteer",    emoji: "🤝", label: "Volunteering",         desc: "Community service, NGO, social impact" },
-  { id: "internship",   emoji: "💼", label: "Internship / Work", desc: "Intern, part-time, startup" },
-  { id: "sports",       emoji: "⚽", label: "Sports",             desc: "Sports club, competition, coaching" },
-  { id: "arts",         emoji: "🎨", label: "Arts / Creative", desc: "Music, painting, design, writing" },
-  { id: "stem_project", emoji: "💻", label: "STEM Project",           desc: "App, website, robot, hackathon" },
-  { id: "award",        emoji: "🏆", label: "Awards",          desc: "National, international awards, honors" },
-  { id: "other",        emoji: "✨", label: "Other",                 desc: "Activities not listed above" },
+  {
+    id: "academic",
+    emoji: "🎓",
+    label: "Academic",
+    desc: "Olympiad, academic competitions, scholarships",
+  },
+  {
+    id: "research",
+    emoji: "🔬",
+    label: "Research",
+    desc: "Research project, paper, lab internship",
+  },
+  {
+    id: "leadership",
+    emoji: "👑",
+    label: "Leadership",
+    desc: "Club president, student council, team captain",
+  },
+  {
+    id: "volunteer",
+    emoji: "🤝",
+    label: "Volunteering",
+    desc: "Community service, NGO, social impact",
+  },
+  {
+    id: "internship",
+    emoji: "💼",
+    label: "Internship / Work",
+    desc: "Intern, part-time, startup",
+  },
+  {
+    id: "sports",
+    emoji: "⚽",
+    label: "Sports",
+    desc: "Sports club, competition, coaching",
+  },
+  {
+    id: "arts",
+    emoji: "🎨",
+    label: "Arts / Creative",
+    desc: "Music, painting, design, writing",
+  },
+  {
+    id: "stem_project",
+    emoji: "💻",
+    label: "STEM Project",
+    desc: "App, website, robot, hackathon",
+  },
+  {
+    id: "award",
+    emoji: "🏆",
+    label: "Awards",
+    desc: "National, international awards, honors",
+  },
+  {
+    id: "other",
+    emoji: "✨",
+    label: "Other",
+    desc: "Activities not listed above",
+  },
 ];
 
 export function ProfileBar({ profile, onChange }) {
@@ -36,7 +138,7 @@ export function ProfileBar({ profile, onChange }) {
 
   function handleChange(key, value, validate) {
     const num = parseFloat(value);
-    const err = (validate && value !== "" && !isNaN(num)) ? validate(num) : null;
+    const err = validate && value !== "" && !isNaN(num) ? validate(num) : null;
     setErrors((prev) => ({ ...prev, [key]: err }));
     onChange({ ...profile, [key]: value });
   }
@@ -65,43 +167,79 @@ export function ProfileBar({ profile, onChange }) {
   }
 
   function buildString(cats, details) {
-    return cats.map((id) => {
-      const cat = ACTIVITY_CATEGORIES.find((c) => c.id === id);
-      const detail = details[id];
-      return detail ? `[${cat?.label}] ${detail}` : cat?.label;
-    }).join("; ");
+    return cats
+      .map((id) => {
+        const cat = ACTIVITY_CATEGORIES.find((c) => c.id === id);
+        const detail = details[id];
+        return detail ? `[${cat?.label}] ${detail}` : cat?.label;
+      })
+      .join("; ");
   }
 
+  const [hovered, setHovered] = useState(false);
+
   return (
-    <div style={{
-      background: "white",
-      border: "1px solid #e5e7eb",
-      borderRadius: 14,
-      marginBottom: 24,
-      overflow: "hidden",
-      boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-    }}>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: "rgba(255,255,255,0.72)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        border: hovered
+          ? "1px solid rgba(165,180,252,0.6)"
+          : "1px solid rgba(255,255,255,0.8)",
+        borderRadius: 16,
+        marginBottom: 24,
+        overflow: "hidden",
+        boxShadow: hovered
+          ? "0 8px 32px rgba(99,102,241,0.18), 0 0 0 2px rgba(165,180,252,0.2)"
+          : "0 2px 16px rgba(99,102,241,0.07)",
+        transition: "box-shadow 0.25s ease, border-color 0.25s ease",
+      }}
+    >
       {/* Header */}
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "14px 20px", cursor: "pointer",
-          borderBottom: open ? "1px solid #f3f4f6" : "none",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "14px 20px",
+          cursor: "pointer",
+          borderBottom: open ? "1px solid rgba(165,180,252,0.2)" : "none",
           userSelect: "none",
+          background: "rgba(255,255,255,0.4)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 16 }}>📋</span>
-          <span style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>Student Profile</span>
+          <span style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>
+            Student Profile
+          </span>
           {!open && (
             <span style={{ fontSize: 12, color: "#9ca3af", marginLeft: 4 }}>
-              {profile.name || "Not filled"} {profile.gpa ? `· GPA ${profile.gpa}` : ""} {profile.school_name ? `· ${profile.school_name}` : ""}
+              {profile.name || "Not filled"}{" "}
+              {profile.gpa ? `· GPA ${profile.gpa}` : ""}{" "}
+              {profile.school_name ? `· ${profile.school_name}` : ""}
             </span>
           )}
         </div>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#9ca3af"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform 0.2s",
+            flexShrink: 0,
+          }}
+        >
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </div>
@@ -109,43 +247,114 @@ export function ProfileBar({ profile, onChange }) {
       {open && (
         <div style={{ padding: "16px 20px" }}>
           {/* Fields grid — label trên, input dưới */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px 10px", marginBottom: 20 }}>
-            {FIELDS.map(({ key, label, placeholder, type, min, max, step, validate, readonly }) => (
-              <div key={key}>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 5 }}>
-                  {label} {readonly && <span style={{ color: "#9ca3af", fontWeight: 400, textTransform: "none" }}>🔒</span>}
-                </label>
-                <input
-                  type={type}
-                  placeholder={placeholder}
-                  value={readonly ? placeholder : (profile[key] || "")}
-                  min={min} max={max} step={step}
-                  readOnly={readonly}
-                  onChange={(e) => !readonly && handleChange(key, e.target.value, validate)}
-                  style={{
-                    width: "100%", padding: "8px 11px", borderRadius: 8,
-                    border: `1.5px solid ${errors[key] ? "#ef4444" : "#e5e7eb"}`,
-                    fontSize: 13, boxSizing: "border-box", outline: "none",
-                    transition: "border-color 0.15s",
-                    background: readonly ? "#f3f4f6" : (errors[key] ? "#fef2f2" : "#fafafa"),
-                    color: readonly ? "#6b7280" : "#111827",
-                    cursor: readonly ? "not-allowed" : "text",
-                  }}
-                  onFocus={(e) => { if (!errors[key] && !readonly) e.target.style.borderColor = "#3b82f6"; }}
-                  onBlur={(e) => { if (!errors[key]) e.target.style.borderColor = "#e5e7eb"; }}
-                />
-                {errors[key] && (
-                  <div style={{ fontSize: 11, color: "#ef4444", marginTop: 3 }}>⚠ {errors[key]}</div>
-                )}
-              </div>
-            ))}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+              gap: "12px 10px",
+              marginBottom: 20,
+            }}
+          >
+            {FIELDS.map(
+              ({
+                key,
+                label,
+                placeholder,
+                type,
+                min,
+                max,
+                step,
+                validate,
+                readonly,
+              }) => (
+                <div key={key}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      display: "block",
+                      marginBottom: 5,
+                    }}
+                  >
+                    {label}{" "}
+                    {readonly && (
+                      <span
+                        style={{
+                          color: "#9ca3af",
+                          fontWeight: 400,
+                          textTransform: "none",
+                        }}
+                      >
+                        🔒
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type={type}
+                    placeholder={placeholder}
+                    value={readonly ? placeholder : profile[key] || ""}
+                    min={min}
+                    max={max}
+                    step={step}
+                    readOnly={readonly}
+                    onChange={(e) =>
+                      !readonly && handleChange(key, e.target.value, validate)
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "8px 11px",
+                      borderRadius: 8,
+                      border: `1.5px solid ${errors[key] ? "#ef4444" : "#e5e7eb"}`,
+                      fontSize: 13,
+                      boxSizing: "border-box",
+                      outline: "none",
+                      transition: "border-color 0.15s",
+                      background: readonly
+                        ? "rgba(243,244,246,0.6)"
+                        : errors[key]
+                          ? "#fef2f2"
+                          : "rgba(255,255,255,0.7)",
+                      color: readonly ? "#6b7280" : "#111827",
+                      cursor: readonly ? "not-allowed" : "text",
+                    }}
+                    onFocus={(e) => {
+                      if (!errors[key] && !readonly)
+                        e.target.style.borderColor = "#3b82f6";
+                    }}
+                    onBlur={(e) => {
+                      if (!errors[key]) e.target.style.borderColor = "#e5e7eb";
+                    }}
+                  />
+                  {errors[key] && (
+                    <div
+                      style={{ fontSize: 11, color: "#ef4444", marginTop: 3 }}
+                    >
+                      ⚠ {errors[key]}
+                    </div>
+                  )}
+                </div>
+              ),
+            )}
           </div>
 
           {/* Divider */}
           <div style={{ borderTop: "1px solid #f3f4f6", marginBottom: 16 }} />
 
           {/* Activities */}
-          <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 10 }}>
+          <label
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#6b7280",
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+              display: "block",
+              marginBottom: 10,
+            }}
+          >
             Extracurriculars — select all that apply
           </label>
 
@@ -157,10 +366,17 @@ export function ProfileBar({ profile, onChange }) {
                   key={id}
                   onClick={() => toggleCategory(id)}
                   style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "7px 14px", borderRadius: 20, fontSize: 13,
-                    cursor: "pointer", transition: "all 0.15s",
-                    border: selected ? "1.5px solid #2563eb" : "1.5px solid #e5e7eb",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 14px",
+                    borderRadius: 20,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    border: selected
+                      ? "1.5px solid #2563eb"
+                      : "1.5px solid #e5e7eb",
                     background: selected ? "#eff6ff" : "#fafafa",
                     color: selected ? "#1d4ed8" : "#374151",
                     fontWeight: selected ? 600 : 400,
@@ -175,16 +391,47 @@ export function ProfileBar({ profile, onChange }) {
 
           {/* Detail inputs */}
           {selectedCats.length > 0 && (
-            <div style={{ marginTop: 14, background: "#f8faff", borderRadius: 10, border: "1px solid #dbeafe", padding: "14px 16px" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 12 }}>
+            <div
+              style={{
+                marginTop: 14,
+                background: "rgba(219,234,254,0.4)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+                borderRadius: 10,
+                border: "1px solid rgba(165,180,252,0.35)",
+                padding: "14px 16px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "#6b7280",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  marginBottom: 12,
+                }}
+              >
                 Describe each selected activity
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 10 }}
+              >
                 {selectedCats.map((id) => {
                   const cat = ACTIVITY_CATEGORIES.find((c) => c.id === id);
                   return (
-                    <div key={id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 13, minWidth: 130, color: "#374151", fontWeight: 500 }}>
+                    <div
+                      key={id}
+                      style={{ display: "flex", alignItems: "center", gap: 10 }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 13,
+                          minWidth: 130,
+                          color: "#374151",
+                          fontWeight: 500,
+                        }}
+                      >
                         {cat.emoji} {cat.label}
                       </span>
                       <input
@@ -192,12 +439,18 @@ export function ProfileBar({ profile, onChange }) {
                         value={activityDetails[id] || ""}
                         onChange={(e) => handleDetail(id, e.target.value)}
                         style={{
-                          flex: 1, padding: "7px 11px", borderRadius: 8,
-                          border: "1.5px solid #e5e7eb", fontSize: 13,
-                          background: "white", outline: "none",
+                          flex: 1,
+                          padding: "7px 11px",
+                          borderRadius: 8,
+                          border: "1.5px solid #e5e7eb",
+                          fontSize: 13,
+                          background: "white",
+                          outline: "none",
                         }}
-                        onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-                        onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
+                        onFocus={(e) =>
+                          (e.target.style.borderColor = "#3b82f6")
+                        }
+                        onBlur={(e) => (e.target.style.borderColor = "#e5e7eb")}
                       />
                     </div>
                   );

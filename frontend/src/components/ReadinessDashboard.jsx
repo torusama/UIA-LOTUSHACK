@@ -1130,7 +1130,14 @@ export default function ReadinessDashboard({ result = MOCK_RESULT }) {
           score={essay.score}
           max={essay.max}
           theme="amber"
-          headerBadge={barRating(Math.round((essay.score / essay.max) * 100))}
+          headerBadge={(() => {
+            const pct = essay.score / essay.max;
+            if (pct >= 0.8) return "Excellent";
+            if (pct >= 0.6) return "Good";
+            if (pct >= 0.4) return "Average";
+            if (essay.score === 0) return "Not Scored";
+            return "Needs Work";
+          })()}
         >
           {essay.criteria.map((c, i) => {
             const r = criteriaRating(c.score);
@@ -1172,9 +1179,14 @@ export default function ReadinessDashboard({ result = MOCK_RESULT }) {
           score={interview.score}
           max={interview.max}
           theme="pink"
-          headerBadge={barRating(
-            Math.round((interview.score / interview.max) * 100),
-          )}
+          headerBadge={(() => {
+            const pct = interview.score / interview.max;
+            if (pct >= 0.8) return "Excellent";
+            if (pct >= 0.6) return "Good";
+            if (pct >= 0.4) return "Average";
+            if (interview.score === 0) return "Not Scored";
+            return "Needs Work";
+          })()}
         >
           {interview.criteria.map((c, i) => {
             const r = criteriaRating(c.score);

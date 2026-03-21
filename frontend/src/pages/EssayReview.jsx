@@ -3,18 +3,53 @@ import { reviewEssay, reviewEssayPdf } from "../api/client";
 
 const SCORE_LABELS = {
   clarity_of_story: "Clarity of Story",
-  authenticity:     "Authenticity",
-  school_fit:       "School Fit",
-  originality:      "Originality",
-  overall:          "Overall",
+  authenticity: "Authenticity",
+  school_fit: "School Fit",
+  originality: "Originality",
+  overall: "Overall",
 };
 
 function scoreTag(score, max = 10) {
   const pct = score / max;
-  if (pct >= 0.8) return { text: "Excellent",  color: "#065f46", bg: "#ecfdf5", bar: "#10b981" };
-  if (pct >= 0.6) return { text: "Good",        color: "#92400e", bg: "#fffbeb", bar: "#f59e0b" };
-  if (pct >= 0.4) return { text: "Average",     color: "#9a3412", bg: "#fff7ed", bar: "#f97316" };
-  return               { text: "Needs Work",   color: "#991b1b", bg: "#fef2f2", bar: "#ef4444" };
+  if (pct >= 0.8)
+    return {
+      text: "Excellent",
+      color: "#065f46",
+      bg: "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)",
+      bar: "#34d399",
+      glow: "0 0 12px rgba(52,211,153,0.45), 0 2px 8px rgba(52,211,153,0.2)",
+      badgeBg: "#d1fae5",
+      badgeGlow: "0 0 8px rgba(52,211,153,0.5)",
+    };
+  if (pct >= 0.6)
+    return {
+      text: "Good",
+      color: "#854d0e",
+      bg: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+      bar: "#fbbf24",
+      glow: "0 0 12px rgba(251,191,36,0.45), 0 2px 8px rgba(251,191,36,0.2)",
+      badgeBg: "#fef3c7",
+      badgeGlow: "0 0 8px rgba(251,191,36,0.5)",
+    };
+  if (pct >= 0.4)
+    return {
+      text: "Average",
+      color: "#9a3412",
+      bg: "linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)",
+      bar: "#fb923c",
+      glow: "0 0 12px rgba(251,146,60,0.45), 0 2px 8px rgba(251,146,60,0.2)",
+      badgeBg: "#ffedd5",
+      badgeGlow: "0 0 8px rgba(251,146,60,0.5)",
+    };
+  return {
+    text: "Needs Work",
+    color: "#991b1b",
+    bg: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
+    bar: "#f87171",
+    glow: "0 0 12px rgba(248,113,113,0.45), 0 2px 8px rgba(248,113,113,0.2)",
+    badgeBg: "#fee2e2",
+    badgeGlow: "0 0 8px rgba(248,113,113,0.5)",
+  };
 }
 
 /**
@@ -55,7 +90,10 @@ function cleanHighlightedText(raw) {
 function splitIntoParagraphs(text) {
   // If there are already paragraph breaks, use them
   if (text.includes("\n\n")) {
-    return text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+    return text
+      .split(/\n\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
   }
 
   // Auto-split: split on sentence-ending punctuation followed by space + capital letter
@@ -145,23 +183,24 @@ const css = `
   }
   .fade-up { animation:fadeUp .2s ease; }
 
-  .card { background:white; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
+  .card { background:white; border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.04); }
   .card-hd {
     padding:12px 20px; border-bottom:1px solid #f3f4f6;
     font-size:10.5px; font-weight:700; letter-spacing:.1em;
     text-transform:uppercase; color:#9ca3af;
   }
   .srow {
-    display:flex; align-items:center; gap:14px; padding:12px 20px;
+    display:flex; align-items:center; gap:14px; padding:13px 20px;
     border-bottom:1px solid #f9fafb; transition:background .15s;
   }
   .srow:last-child { border-bottom:none; }
   .srow:hover { background:#fafafa; }
-  .btrack { flex:1; height:5px; background:#f3f4f6; border-radius:99px; overflow:hidden; }
+  .btrack { flex:1; height:6px; background:#f0f0f0; border-radius:99px; overflow:visible; position:relative; }
   .bfill  { height:100%; border-radius:99px; transition:width 1s cubic-bezier(.4,0,.2,1); }
   .badge {
     font-size:10px; font-weight:700; letter-spacing:.06em;
-    text-transform:uppercase; padding:2px 9px; border-radius:99px; white-space:nowrap;
+    text-transform:uppercase; padding:3px 10px; border-radius:99px; white-space:nowrap;
+    border:1px solid rgba(255,255,255,0.6);
   }
   .rrow { padding:14px 20px; border-bottom:1px solid #f9fafb; transition:background .15s; }
   .rrow:last-child { border-bottom:none; }
@@ -246,55 +285,107 @@ const css = `
 
 /* ════════════════════════════════════════════════════ */
 export default function EssayReview({ profile, onResult }) {
-  const [mode, setMode]       = useState("text");
-  const [essay, setEssay]     = useState("");
-  const [pdf, setPdf]         = useState(null);
+  const [mode, setMode] = useState("text");
+  const [essay, setEssay] = useState("");
+  const [pdf, setPdf] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult]   = useState(null);
-  const [error, setError]     = useState(null);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
 
   async function handleSubmit() {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const prof = {
         ...profile,
-        activities: typeof profile.activities === "string"
-          ? profile.activities.split(",").map(a => a.trim()).filter(Boolean)
-          : profile.activities || [],
+        activities:
+          typeof profile.activities === "string"
+            ? profile.activities
+                .split(",")
+                .map((a) => a.trim())
+                .filter(Boolean)
+            : profile.activities || [],
       };
       let data;
       if (mode === "pdf") {
-        if (!pdf) { setError("Please select a PDF file."); setLoading(false); return; }
+        if (!pdf) {
+          setError("Please select a PDF file.");
+          setLoading(false);
+          return;
+        }
         data = await reviewEssayPdf(pdf, profile.school_name || "MIT", prof);
       } else {
-        if (essay.trim().length < 100) { setError("Minimum 100 characters required."); setLoading(false); return; }
+        if (essay.trim().length < 100) {
+          setError("Minimum 100 characters required.");
+          setLoading(false);
+          return;
+        }
         data = await reviewEssay(essay, profile.school_name || "MIT", prof);
       }
-      setResult(data); onResult(data);
+      setResult(data);
+      onResult(data);
     } catch {
       setError("Connection error — check your API key and backend.");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function switchMode(m) { setMode(m); setError(null); setResult(null); }
+  function switchMode(m) {
+    setMode(m);
+    setError(null);
+    setResult(null);
+  }
 
   return (
     <div className="ew">
       <style>{css}</style>
 
       <div style={{ marginBottom: 24 }}>
-        <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 700, color: "#111827" }}>Essay Analysis</h2>
+        <h2
+          style={{
+            margin: "0 0 6px",
+            fontSize: 22,
+            fontWeight: 700,
+            color: "#111827",
+          }}
+        >
+          Essay Analysis
+        </h2>
         <p style={{ margin: 0, color: "#6b7280", fontSize: 14 }}>
-          Reviewed against <strong style={{ color: "#374151" }}>{profile.school_name || "MIT"}</strong>'s admissions rubric
+          Reviewed against{" "}
+          <strong style={{ color: "#374151" }}>
+            {profile.school_name || "MIT"}
+          </strong>
+          's admissions rubric
         </p>
       </div>
 
-      <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: 24, marginBottom: 20, boxShadow: "0 1px 6px rgba(0,0,0,.04)" }}>
+      <div
+        style={{
+          background: "white",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 24,
+          marginBottom: 20,
+          boxShadow: "0 1px 6px rgba(0,0,0,.04)",
+        }}
+      >
         <div style={{ marginBottom: 20 }}>
           <div className="tab-sw">
             <div className={`tab-sl ${mode === "pdf" ? "r" : ""}`} />
-            <button className={`tab-b ${mode === "text" ? "on" : ""}`} onClick={() => switchMode("text")}>Paste Text</button>
-            <button className={`tab-b ${mode === "pdf"  ? "on" : ""}`} onClick={() => switchMode("pdf")}>Upload PDF</button>
+            <button
+              className={`tab-b ${mode === "text" ? "on" : ""}`}
+              onClick={() => switchMode("text")}
+            >
+              Paste Text
+            </button>
+            <button
+              className={`tab-b ${mode === "pdf" ? "on" : ""}`}
+              onClick={() => switchMode("pdf")}
+            >
+              Upload PDF
+            </button>
           </div>
         </div>
 
@@ -304,26 +395,57 @@ export default function EssayReview({ profile, onResult }) {
               className="esstxt"
               placeholder="Paste your essay here (minimum 100 characters)…"
               value={essay}
-              onChange={e => setEssay(e.target.value)}
+              onChange={(e) => setEssay(e.target.value)}
             />
           ) : (
             <div
               className={`dz ${pdf ? "has" : ""}`}
               onClick={() => document.getElementById("_pdfin_").click()}
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type === "application/pdf") setPdf(f); }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const f = e.dataTransfer.files[0];
+                if (f?.type === "application/pdf") setPdf(f);
+              }}
             >
-              <input id="_pdfin_" type="file" accept=".pdf" style={{ display: "none" }}
-                onChange={e => setPdf(e.target.files[0] || null)} />
+              <input
+                id="_pdfin_"
+                type="file"
+                accept=".pdf"
+                style={{ display: "none" }}
+                onChange={(e) => setPdf(e.target.files[0] || null)}
+              />
               {pdf ? (
                 <>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 4 }}>{pdf.name}</div>
-                  <div style={{ fontSize: 12, color: "#9ca3af" }}>{(pdf.size / 1024).toFixed(0)} KB · Click to change</div>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#111827",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {pdf.name}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                    {(pdf.size / 1024).toFixed(0)} KB · Click to change
+                  </div>
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 4 }}>Drop PDF here or click to browse</div>
-                  <div style={{ fontSize: 12, color: "#9ca3af" }}>.pdf files only</div>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: "#374151",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Drop PDF here or click to browse
+                  </div>
+                  <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                    .pdf files only
+                  </div>
                 </>
               )}
             </div>
@@ -331,7 +453,17 @@ export default function EssayReview({ profile, onResult }) {
         </div>
 
         {error && (
-          <div style={{ marginTop: 14, padding: "10px 14px", background: "#fef2f2", borderLeft: "3px solid #ef4444", borderRadius: 6, fontSize: 13, color: "#991b1b" }}>
+          <div
+            style={{
+              marginTop: 14,
+              padding: "10px 14px",
+              background: "#fef2f2",
+              borderLeft: "3px solid #ef4444",
+              borderRadius: 6,
+              fontSize: 13,
+              color: "#991b1b",
+            }}
+          >
             {error}
           </div>
         )}
@@ -343,7 +475,12 @@ export default function EssayReview({ profile, onResult }) {
         </div>
       </div>
 
-      {result && <EssayResult result={result} schoolName={profile.school_name || "MIT"} />}
+      {result && (
+        <EssayResult
+          result={result}
+          schoolName={profile.school_name || "MIT"}
+        />
+      )}
     </div>
   );
 }
@@ -354,12 +491,43 @@ function HighlightedEssay({ fullEssay, suggestions }) {
 
   if (!fullEssay) {
     return (
-      <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        style={{
+          padding: "16px 20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
         {suggestions.map((s, i) => (
-          <div key={i} style={{ background: "#fffbeb", borderRadius: 10, padding: 14, fontSize: 13, borderLeft: "4px solid #f59e0b" }}>
-            <div style={{ fontStyle: "italic", color: "#92400e", marginBottom: 8, padding: "5px 10px", background: "#fef3c7", borderRadius: 6 }}>"{s.quote}"</div>
-            <p style={{ marginBottom: 6 }}><strong style={{ color: "#dc2626" }}>Issue:</strong> {s.issue}</p>
-            <p style={{ margin: 0, color: "#15803d" }}><strong>Suggestion:</strong> {s.suggestion}</p>
+          <div
+            key={i}
+            style={{
+              background: "#fffbeb",
+              borderRadius: 10,
+              padding: 14,
+              fontSize: 13,
+              borderLeft: "4px solid #f59e0b",
+            }}
+          >
+            <div
+              style={{
+                fontStyle: "italic",
+                color: "#92400e",
+                marginBottom: 8,
+                padding: "5px 10px",
+                background: "#fef3c7",
+                borderRadius: 6,
+              }}
+            >
+              "{s.quote}"
+            </div>
+            <p style={{ marginBottom: 6 }}>
+              <strong style={{ color: "#dc2626" }}>Issue:</strong> {s.issue}
+            </p>
+            <p style={{ margin: 0, color: "#15803d" }}>
+              <strong>Suggestion:</strong> {s.suggestion}
+            </p>
           </div>
         ))}
       </div>
@@ -374,8 +542,8 @@ function HighlightedEssay({ fullEssay, suggestions }) {
 
   // 3. Parse @@highlight@@ inside each paragraph
   let hIdx = 0;
-  const parsedParas = paragraphs.map(para => {
-    return para.split(/(@@[^@]+@@)/g).map(part => {
+  const parsedParas = paragraphs.map((para) => {
+    return para.split(/(@@[^@]+@@)/g).map((part) => {
       if (part.startsWith("@@") && part.endsWith("@@"))
         return { type: "hl", text: part.slice(2, -2), idx: hIdx++ };
       return { type: "plain", text: part };
@@ -389,19 +557,28 @@ function HighlightedEssay({ fullEssay, suggestions }) {
         <div className="hint-pill">
           <span className="hint-dot">✏️</span>
           <span>
-            <strong>{totalHL} section{totalHL !== 1 ? "s" : ""}</strong> marked for revision
-            <span style={{ fontWeight:400, opacity:.8 }}> — click the highlighted text to view feedback</span>
+            <strong>
+              {totalHL} section{totalHL !== 1 ? "s" : ""}
+            </strong>{" "}
+            marked for revision
+            <span style={{ fontWeight: 400, opacity: 0.8 }}>
+              {" "}
+              — click the highlighted text to view feedback
+            </span>
           </span>
         </div>
       )}
 
       {parsedParas.map((parts, gi) => {
-        const paraHasOpen = parts.some(s => s.type === "hl" && s.idx === openIdx);
+        const paraHasOpen = parts.some(
+          (s) => s.type === "hl" && s.idx === openIdx,
+        );
         return (
           <div key={gi}>
             <p className="essay-para">
               {parts.map((seg, si) => {
-                if (seg.type === "plain") return <span key={si}>{seg.text}</span>;
+                if (seg.type === "plain")
+                  return <span key={si}>{seg.text}</span>;
                 const isOpen = openIdx === seg.idx;
                 return (
                   <span
@@ -419,25 +596,67 @@ function HighlightedEssay({ fullEssay, suggestions }) {
             {paraHasOpen && openIdx !== null && suggestions[openIdx] && (
               <div className="icmt">
                 <div className="icmt-head">
-                  <span className="icmt-lbl">Comment {openIdx + 1} of {totalHL}</span>
-                  <button className="icmt-x" onClick={() => setOpenIdx(null)}>×</button>
+                  <span className="icmt-lbl">
+                    Comment {openIdx + 1} of {totalHL}
+                  </span>
+                  <button className="icmt-x" onClick={() => setOpenIdx(null)}>
+                    ×
+                  </button>
                 </div>
                 <div className="icmt-body">
-                  <div style={{ background: "#fffbeb", borderLeft: "3px solid #f59e0b", borderRadius: "0 6px 6px 0", padding: "6px 12px", fontSize: 13, fontStyle: "italic", color: "#92400e", lineHeight: 1.55 }}>
+                  <div
+                    style={{
+                      background: "#fffbeb",
+                      borderLeft: "3px solid #f59e0b",
+                      borderRadius: "0 6px 6px 0",
+                      padding: "6px 12px",
+                      fontSize: 13,
+                      fontStyle: "italic",
+                      color: "#92400e",
+                      lineHeight: 1.55,
+                    }}
+                  >
                     "{suggestions[openIdx].quote}"
                   </div>
                   <div>
-                    <div className="icmt-sec" style={{ color: "#dc2626" }}>Issue</div>
+                    <div className="icmt-sec" style={{ color: "#dc2626" }}>
+                      Issue
+                    </div>
                     <p className="icmt-txt">{suggestions[openIdx].issue}</p>
                   </div>
                   <div>
-                    <div className="icmt-sec" style={{ color: "#059669" }}>Suggestion</div>
-                    <p className="icmt-txt">{suggestions[openIdx].suggestion}</p>
+                    <div className="icmt-sec" style={{ color: "#059669" }}>
+                      Suggestion
+                    </div>
+                    <p className="icmt-txt">
+                      {suggestions[openIdx].suggestion}
+                    </p>
                   </div>
                   {totalHL > 1 && (
-                    <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6" }}>
-                      <button className="cmt-nav-btn" onClick={() => setOpenIdx(i => Math.max(0, i - 1))} disabled={openIdx === 0}>← Previous</button>
-                      <button className="cmt-nav-btn" onClick={() => setOpenIdx(i => Math.min(totalHL - 1, i + 1))} disabled={openIdx === totalHL - 1}>Next →</button>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        paddingTop: 8,
+                        borderTop: "1px solid #f3f4f6",
+                      }}
+                    >
+                      <button
+                        className="cmt-nav-btn"
+                        onClick={() => setOpenIdx((i) => Math.max(0, i - 1))}
+                        disabled={openIdx === 0}
+                      >
+                        ← Previous
+                      </button>
+                      <button
+                        className="cmt-nav-btn"
+                        onClick={() =>
+                          setOpenIdx((i) => Math.min(totalHL - 1, i + 1))
+                        }
+                        disabled={openIdx === totalHL - 1}
+                      >
+                        Next →
+                      </button>
                     </div>
                   )}
                 </div>
@@ -452,57 +671,147 @@ function HighlightedEssay({ fullEssay, suggestions }) {
 
 /* ─── Full result layout ─── */
 function EssayResult({ result, schoolName }) {
-  const scores      = result.scores || {};
-  const criteria    = result.criterion_feedback || [];
+  const scores = result.scores || {};
+  const criteria = result.criterion_feedback || [];
   const suggestions = result.paragraph_suggestions || [];
-  const overall     = scores.overall || 0;
-  const ovTag       = scoreTag(overall);
+  const overall = scores.overall || 0;
+  const ovTag = scoreTag(overall);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
       {/* Summary */}
-      <div style={{ background: "#111827", borderRadius: 12, padding: "24px 28px", display: "flex", gap: 28, alignItems: "center" }}>
+      <div
+        style={{
+          background:
+            "linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #bfdbfe 100%)",
+          borderRadius: 14,
+          padding: "24px 28px",
+          display: "flex",
+          gap: 28,
+          alignItems: "center",
+          boxShadow:
+            "0 8px 32px rgba(139,92,246,0.15), 0 0 0 1px rgba(196,181,253,0.4)",
+          border: "1px solid rgba(196,181,253,0.5)",
+        }}
+      >
         <div style={{ flexShrink: 0, textAlign: "center" }}>
-          <div style={{ fontSize: 36, fontWeight: 800, color: ovTag.bar, lineHeight: 1 }}>
+          <div
+            style={{
+              fontSize: 36,
+              fontWeight: 800,
+              color: ovTag.bar,
+              lineHeight: 1,
+              textShadow: ovTag.glow,
+            }}
+          >
             {ovTag.text}
           </div>
         </div>
-        <div style={{ width: 1, height: 52, background: "#2d3748", flexShrink: 0 }} />
-        <p style={{ margin: 0, color: "#9ca3af", fontSize: 14, lineHeight: 1.7 }}>{result.summary}</p>
+        <div
+          style={{
+            width: 1,
+            height: 52,
+            background: "rgba(139,92,246,0.2)",
+            flexShrink: 0,
+          }}
+        />
+        <p
+          style={{ margin: 0, color: "#4c1d95", fontSize: 14, lineHeight: 1.7 }}
+        >
+          {result.summary}
+        </p>
       </div>
 
       {/* Score breakdown */}
       <div className="card">
         <div className="card-hd">Score Breakdown</div>
-        {Object.entries(scores).filter(([k]) => k !== "overall").map(([k, v]) => {
-          const tag = scoreTag(v);
-          return (
-            <div className="srow" key={k}>
-              <div style={{ width: 140, fontSize: 13, color: "#374151", flexShrink: 0 }}>
-                {SCORE_LABELS[k] || k.replace(/_/g, " ")}
+        {Object.entries(scores)
+          .filter(([k]) => k !== "overall")
+          .map(([k, v]) => {
+            const tag = scoreTag(v);
+            return (
+              <div className="srow" key={k}>
+                <div
+                  style={{
+                    width: 140,
+                    fontSize: 13,
+                    color: "#374151",
+                    flexShrink: 0,
+                  }}
+                >
+                  {SCORE_LABELS[k] || k.replace(/_/g, " ")}
+                </div>
+                <div className="btrack">
+                  <div
+                    className="bfill"
+                    style={{
+                      width: `${(v / 10) * 100}%`,
+                      background: tag.bar,
+                      boxShadow: tag.glow,
+                    }}
+                  />
+                </div>
+                <span
+                  className="badge"
+                  style={{
+                    color: tag.color,
+                    background: tag.badgeBg,
+                    boxShadow: tag.badgeGlow,
+                  }}
+                >
+                  {tag.text}
+                </span>
               </div>
-              <div className="btrack">
-                <div className="bfill" style={{ width: `${(v / 10) * 100}%`, background: tag.bar }} />
-              </div>
-              <span className="badge" style={{ color: tag.color, background: tag.bg }}>{tag.text}</span>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
 
       {/* Strengths + Weaknesses */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         {[
-          { title: "Strengths",        items: result.strengths  || [], dot: "#10b981", hc: "#065f46" },
-          { title: "Areas to Improve", items: result.weaknesses || [], dot: "#f97316", hc: "#9a3412" },
-        ].map(({ title, items, dot, hc }) => (
+          {
+            title: "Strengths",
+            items: result.strengths || [],
+            dot: "#34d399",
+            hc: "#065f46",
+            dotGlow: "0 0 6px rgba(52,211,153,0.7)",
+          },
+          {
+            title: "Areas to Improve",
+            items: result.weaknesses || [],
+            dot: "#fb923c",
+            hc: "#9a3412",
+            dotGlow: "0 0 6px rgba(251,146,60,0.7)",
+          },
+        ].map(({ title, items, dot, hc, dotGlow }) => (
           <div className="card" key={title}>
-            <div className="card-hd" style={{ color: hc }}>{title}</div>
+            <div className="card-hd" style={{ color: hc }}>
+              {title}
+            </div>
             <div style={{ padding: "14px 20px" }}>
               {items.map((item, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, marginBottom: 9, fontSize: 13, color: "#374151", lineHeight: 1.55 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: dot, flexShrink: 0, marginTop: 7 }} />
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    marginBottom: 9,
+                    fontSize: 13,
+                    color: "#374151",
+                    lineHeight: 1.55,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: dot,
+                      flexShrink: 0,
+                      marginTop: 6,
+                      boxShadow: dotGlow,
+                    }}
+                  />
                   {item}
                 </div>
               ))}
@@ -530,13 +839,43 @@ function EssayResult({ result, schoolName }) {
             const tag = scoreTag(c.score);
             return (
               <div className="rrow" key={i}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                    {SCORE_LABELS[c.criterion] || c.criterion.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 5,
+                  }}
+                >
+                  <span
+                    style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}
+                  >
+                    {SCORE_LABELS[c.criterion] ||
+                      c.criterion
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (l) => l.toUpperCase())}
                   </span>
-                  <span className="badge" style={{ color: tag.color, background: tag.bg }}>{tag.text}</span>
+                  <span
+                    className="badge"
+                    style={{
+                      color: tag.color,
+                      background: tag.badgeBg,
+                      boxShadow: tag.badgeGlow,
+                    }}
+                  >
+                    {tag.text}
+                  </span>
                 </div>
-                <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.6 }}>{c.comment}</p>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 13,
+                    color: "#6b7280",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {c.comment}
+                </p>
               </div>
             );
           })}
@@ -546,17 +885,38 @@ function EssayResult({ result, schoolName }) {
       {/* Clichés */}
       {result.cliche_flags?.length > 0 && (
         <div className="card">
-          <div className="card-hd" style={{ color: "#991b1b" }}>Clichés Detected</div>
-          <div style={{ padding: "14px 20px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="card-hd" style={{ color: "#be185d" }}>
+            Clichés Detected
+          </div>
+          <div
+            style={{
+              padding: "14px 20px",
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
             {result.cliche_flags.map((c, i) => (
-              <span key={i} style={{ fontSize: 12, color: "#991b1b", background: "#fef2f2", padding: "4px 12px", borderRadius: 99, fontStyle: "italic", border: "1px solid #fecaca" }}>
+              <span
+                key={i}
+                style={{
+                  fontSize: 12,
+                  color: "#be185d",
+                  background:
+                    "linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)",
+                  padding: "4px 12px",
+                  borderRadius: 99,
+                  fontStyle: "italic",
+                  border: "1px solid #f9a8d4",
+                  boxShadow: "0 0 8px rgba(190,24,93,0.15)",
+                }}
+              >
                 "{typeof c === "string" ? c : c.phrase}"
               </span>
             ))}
           </div>
         </div>
       )}
-
     </div>
   );
 }
