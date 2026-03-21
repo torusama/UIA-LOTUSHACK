@@ -100,9 +100,10 @@ export function ProfileBar({ profile, onChange }) {
             </span>
           )}
         </div>
-        <span style={{ fontSize: 18, color: "#9ca3af", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-          ⌄
-        </span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </div>
 
       {open && (
