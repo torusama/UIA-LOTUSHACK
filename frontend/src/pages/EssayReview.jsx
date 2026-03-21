@@ -1,19 +1,19 @@
 import { useState } from "react";
-import { reviewEssay } from "../api/client";
+import { reviewEssay, reviewEssayPdf } from "../api/client";
 import { ScorePill, scoreColor } from "../components/ScoreDisplay";
 import { Button } from "../components/Button";
 
 export default function EssayReview({ profile, onResult }) {
+  const [mode, setMode]           = useState("text"); // "text" | "pdf"
   const [essayText, setEssayText] = useState("");
+  const [pdfFile, setPdfFile]     = useState(null);
   const [loading, setLoading]     = useState(false);
   const [result, setResult]       = useState(null);
   const [error, setError]         = useState(null);
 
-async function handleSubmit() {
-    if (essayText.trim().length < 100) { setError("Nhập tối thiểu 100 ký tự."); return; }
+  async function handleSubmit() {
     setLoading(true); setError(null);
     try {
-      // ← Thêm đoạn này: convert activities string → array
       const cleanProfile = {
         ...profile,
         activities: typeof profile.activities === "string"
@@ -21,7 +21,15 @@ async function handleSubmit() {
           : profile.activities || [],
       };
 
-      const data = await reviewEssay(essayText, profile.school_name || "MIT", cleanProfile);
+      let data;
+      if (mode === "pdf") {
+        if (!pdfFile) { setError("Vui lòng chọn file PDF."); setLoading(false); return; }
+        data = await reviewEssayPdf(pdfFile, profile.school_name || "MIT", cleanProfile);
+      } else {
+        if (essayText.trim().length < 100) { setError("Nhập tối thiểu 100 ký tự."); setLoading(false); return; }
+        data = await reviewEssay(essayText, profile.school_name || "MIT", cleanProfile);
+      }
+
       setResult(data);
       onResult(data);
     } catch {
@@ -35,19 +43,65 @@ async function handleSubmit() {
     <section>
       <h2 style={{ marginBottom: 16 }}>Essay Analysis — {profile.school_name || "MIT"}</h2>
 
-      <textarea
-        rows={12}
-        placeholder="Dán essay vào đây..."
-        value={essayText}
-        onChange={(e) => setEssayText(e.target.value)}
-        style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }}
-      />
+      {/* Tab chọn Text / PDF */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {["text", "pdf"].map(m => (
+          <button
+            key={m}
+            onClick={() => { setMode(m); setError(null); setResult(null); }}
+            style={{
+              padding: "7px 20px", borderRadius: 8, cursor: "pointer", fontSize: 13,
+              border: mode === m ? "none" : "1px solid #d1d5db",
+              background: mode === m ? "#2563eb" : "white",
+              color: mode === m ? "white" : "#374151",
+              fontWeight: mode === m ? 600 : 400,
+            }}
+          >
+            {m === "text" ? "📝 Dán text" : "📄 Upload PDF"}
+          </button>
+        ))}
+      </div>
+
+      {/* Input tương ứng */}
+      {mode === "text" ? (
+        <textarea
+          rows={12}
+          placeholder="Dán essay vào đây..."
+          value={essayText}
+          onChange={(e) => setEssayText(e.target.value)}
+          style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14, boxSizing: "border-box" }}
+        />
+      ) : (
+        <div
+          style={{
+            border: "2px dashed #93c5fd", borderRadius: 10, padding: 32,
+            textAlign: "center", background: "#eff6ff", cursor: "pointer"
+          }}
+          onClick={() => document.getElementById("pdf-input").click()}
+        >
+          <input
+            id="pdf-input" type="file" accept=".pdf"
+            style={{ display: "none" }}
+            onChange={(e) => setPdfFile(e.target.files[0])}
+          />
+          {pdfFile
+            ? <p style={{ color: "#1d4ed8", fontWeight: 600 }}>📄 {pdfFile.name}</p>
+            : <>
+                <p style={{ fontSize: 32, marginBottom: 8 }}>📄</p>
+                <p style={{ color: "#3b82f6", fontWeight: 600 }}>Click để chọn file PDF</p>
+                <p style={{ color: "#93c5fd", fontSize: 12, marginTop: 4 }}>Chỉ chấp nhận file .pdf</p>
+              </>
+          }
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
         <Button onClick={handleSubmit} disabled={loading}>
           {loading ? "Đang phân tích..." : "Phân tích Essay"}
         </Button>
-        <span style={{ color: "#9ca3af", fontSize: 13 }}>{essayText.length} ký tự</span>
+        {mode === "text" && (
+          <span style={{ color: "#9ca3af", fontSize: 13 }}>{essayText.length} ký tự</span>
+        )}
       </div>
 
       {error && <p style={{ color: "#dc2626", marginTop: 8, fontSize: 14 }}>{error}</p>}

@@ -16,6 +16,20 @@ export const reviewEssay = (essayText, schoolName, studentProfile) =>
     school_name: schoolName,
     student_profile: studentProfile,
   });
+  // ── Essay PDF ──────────────────────────────────────────────────────────────
+export const reviewEssayPdf = async (file, schoolName, studentProfile) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("school_name", schoolName);
+  formData.append("student_profile", JSON.stringify(studentProfile));
+
+  const res = await fetch("/essay/review-pdf", {
+    method: "POST",
+    body: formData, // KHÔNG set Content-Type — browser tự set multipart
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+};
 
 // ── Interview ──────────────────────────────────────────────────────────────
 export const interviewAsk = (schoolName, studentProfile, conversationHistory, userAnswer) =>
