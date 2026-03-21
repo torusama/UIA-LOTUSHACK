@@ -7,10 +7,10 @@ export function scoreColor(score, max = 10) {
 
 export function scoreLabel(score, max = 10) {
   const pct = score / max;
-  if (pct >= 0.8) return { text: "Tốt",      bg: "#f0fdf4", color: "#16a34a" };
-  if (pct >= 0.6) return { text: "Ổn",        bg: "#fefce8", color: "#ca8a04" };
-  if (pct >= 0.4) return { text: "Trung bình", bg: "#fff7ed", color: "#ea580c" };
-  return             { text: "Cần cải thiện", bg: "#fef2f2", color: "#dc2626" };
+  if (pct >= 0.8) return { text: "Excellent", bg: "#f0fdf4", color: "#16a34a" };
+  if (pct >= 0.6) return { text: "Good",      bg: "#fefce8", color: "#ca8a04" };
+  if (pct >= 0.4) return { text: "Average",   bg: "#fff7ed", color: "#ea580c" };
+  return             { text: "Needs Work",    bg: "#fef2f2", color: "#dc2626" };
 }
 
 export function ScorePill({ label, score, max = 10 }) {
