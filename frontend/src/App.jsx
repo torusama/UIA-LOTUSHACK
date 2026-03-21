@@ -5,7 +5,8 @@ import { ProfileBar } from "./components/ProfileBar";
 import EssayReview  from "./pages/EssayReview";
 import InterviewSim from "./pages/InterviewSim";
 import Dashboard    from "./pages/Dashboard";
-import { onUserChange, logOut } from "./lib/firebase";
+import ProfilePage  from "./pages/ProfilePage";
+import { onUserChange, logOut, saveHistoryEntry } from "./lib/firebase";
 
 const DEFAULT_PROFILE = {
   name: "", gpa: "", major: "Computer Science", activities: "",
@@ -45,18 +46,20 @@ const css = `
   @keyframes appIn { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
 `;
 
-function UserMenu({ user, onLogout }) {
+function UserMenu({ user, onLogout, onProfile }) {
   const [open, setOpen] = useState(false);
   const initials = user.name?.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() || "U";
 
   return (
     <div style={{ position: "relative", marginLeft: 16 }}>
-      <button onClick={() => setOpen(o => !o)} style={{
-        display: "flex", alignItems: "center", gap: 8,
-        background: "none", border: "1.5px solid #c5c6cd",
-        borderRadius: 999, padding: "4px 12px 4px 4px",
-        cursor: "pointer", transition: "border-color 0.15s",
-      }}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          background: "none", border: "1.5px solid #c5c6cd",
+          borderRadius: 999, padding: "4px 12px 4px 4px",
+          cursor: "pointer", transition: "border-color 0.15s",
+        }}
         onMouseEnter={e => e.currentTarget.style.borderColor = T.cobalt}
         onMouseLeave={e => e.currentTarget.style.borderColor = "#c5c6cd"}
       >
@@ -80,13 +83,30 @@ function UserMenu({ user, onLogout }) {
             <div style={{ fontSize:13, fontWeight:700, color:T.navy }}>{user.name}</div>
             <div style={{ fontSize:11, color:T.onSurfaceVar, marginTop:2 }}>{user.email}</div>
           </div>
-          <button onClick={() => { setOpen(false); onLogout(); }} style={{
-            display:"block", width:"100%", textAlign:"left",
-            padding:"10px 12px", background:"none", border:"none",
-            fontSize:13, fontWeight:600, color:"#c0392b",
-            cursor:"pointer", borderRadius:10, marginTop:4,
-            fontFamily:"'Inter',sans-serif", transition:"background 0.15s",
-          }}
+          <button
+            onClick={() => { setOpen(false); onProfile(); }}
+            style={{
+              display:"flex", alignItems:"center", gap:8,
+              width:"100%", textAlign:"left",
+              padding:"10px 12px", background:"none", border:"none",
+              fontSize:13, fontWeight:600, color:T.onSurface,
+              cursor:"pointer", borderRadius:10, marginTop:4,
+              fontFamily:"'Inter',sans-serif", transition:"background 0.15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "#f3f4f6"}
+            onMouseLeave={e => e.currentTarget.style.background = "none"}
+          >
+            <span>👤</span> Hồ sơ cá nhân
+          </button>
+          <button
+            onClick={() => { setOpen(false); onLogout(); }}
+            style={{
+              display:"block", width:"100%", textAlign:"left",
+              padding:"10px 12px", background:"none", border:"none",
+              fontSize:13, fontWeight:600, color:"#c0392b",
+              cursor:"pointer", borderRadius:10,
+              fontFamily:"'Inter',sans-serif", transition:"background 0.15s",
+            }}
             onMouseEnter={e => e.currentTarget.style.background = "#fdf2f2"}
             onMouseLeave={e => e.currentTarget.style.background = "none"}
           >
@@ -99,15 +119,14 @@ function UserMenu({ user, onLogout }) {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState("landing"); // "landing" | "auth" | "app"
-  const [tab, setTab]       = useState("essay");
-  const [user, setUser]     = useState(null);
+  const [screen, setScreen]   = useState("landing");
+  const [tab, setTab]         = useState("essay");
+  const [user, setUser]       = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [profile, setProfile]               = useState(DEFAULT_PROFILE);
   const [essayScore, setEssayScore]         = useState(null);
   const [interviewScore, setInterviewScore] = useState(null);
 
-  // Listen to Firebase auth state on mount
   useEffect(() => {
     const unsub = onUserChange((u) => {
       setUser(u);
@@ -117,13 +136,64 @@ export default function App() {
     return unsub;
   }, []);
 
+  // Save FULL essay result
+  async function handleEssayResult(data) {
+    setEssayScore(data);
+    if (user?.uid) {
+      try {
+        await saveHistoryEntry(user.uid, "essay", {
+          school: profile.school_name || "MIT",
+          // summary fields for card display
+          scores: data.scores || {},
+          summary: data.summary || "",
+          // full result để xem lại
+          full_result: data,
+        });
+      } catch (e) { console.warn("Save essay failed:", e); }
+    }
+  }
+
+  // Save FULL interview result
+  async function handleInterviewReport(data) {
+    setInterviewScore(data);
+    if (user?.uid) {
+      try {
+        await saveHistoryEntry(user.uid, "interview", {
+          school: profile.school_name || "MIT",
+          overall_score: data.overall_score || 0,
+          dimension_scores: data.dimension_scores || {},
+          summary: data.summary || "",
+          // full result để xem lại
+          full_result: data,
+        });
+      } catch (e) { console.warn("Save interview failed:", e); }
+    }
+  }
+
+  // Save FULL dashboard result
+  async function handleDashboardResult(scoreData) {
+    if (user?.uid && scoreData) {
+      try {
+        await saveHistoryEntry(user.uid, "dashboard", {
+          school: scoreData.school || profile.school_name || "MIT",
+          tier: scoreData.tier || "reach",
+          overall_score: scoreData.overall_score || 0,
+          estimated_probability: scoreData.estimated_probability || 0,
+          component_scores: scoreData.component_scores || {},
+          top_gaps: scoreData.top_gaps || [],
+          // full result để xem lại
+          full_result: scoreData,
+        });
+      } catch (e) { console.warn("Save dashboard failed:", e); }
+    }
+  }
+
   const handleLogout = async () => {
     await logOut();
     setUser(null);
     setScreen("landing");
   };
 
-  // Splash while checking auth
   if (!authChecked) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:"#fbf9f5" }}>
       <div style={{ fontFamily:"'Manrope',sans-serif", fontWeight:800, fontSize:18, color:T.navy, opacity:0.4 }}>UniMatch AI</div>
@@ -149,31 +219,56 @@ export default function App() {
         />
       )}
 
-      {screen === "app" && user && (
+      {(screen === "app" || screen === "profile") && user && (
         <div style={{ minHeight:"100vh", background:"#fbf9f5" }}>
           <header className="app-header app-enter">
             <span className="brand">UniMatch AI</span>
 
-            <nav className="nav-pill-wrap">
-              {TABS.map(t => (
-                <button key={t.id} className={`nav-pill ${tab===t.id?"active":""}`} onClick={() => setTab(t.id)}>
-                  {t.label}
-                </button>
-              ))}
-            </nav>
+            {screen === "app" && (
+              <nav className="nav-pill-wrap">
+                {TABS.map(t => (
+                  <button key={t.id} className={`nav-pill ${tab===t.id?"active":""}`} onClick={() => setTab(t.id)}>
+                    {t.label}
+                  </button>
+                ))}
+              </nav>
+            )}
 
-            <UserMenu user={user} onLogout={handleLogout} />
+            {screen === "profile" && (
+              <button
+                onClick={() => setScreen("app")}
+                style={{
+                  marginLeft:"auto", display:"flex", alignItems:"center", gap:6,
+                  background:"none", border:"1.5px solid #c5c6cd", borderRadius:999,
+                  padding:"6px 16px", cursor:"pointer", fontSize:13, fontWeight:600, color:T.onSurface,
+                }}
+              >
+                ← Quay lại
+              </button>
+            )}
+
+            <UserMenu user={user} onLogout={handleLogout} onProfile={() => setScreen("profile")} />
           </header>
 
           <div style={{ maxWidth:980, margin:"0 auto", padding:"0 20px 40px" }}>
-            <ProfileBar profile={profile} onChange={setProfile} />
-            <div className="page-wrap" key={tab}>
-              <div className="page-shell">
-                {tab==="essay"     && <EssayReview  profile={profile} onResult={setEssayScore} />}
-                {tab==="interview" && <InterviewSim profile={profile} onReport={setInterviewScore} />}
-                {tab==="dashboard" && <Dashboard    profile={profile} essayScore={essayScore} interviewScore={interviewScore} />}
+            {screen === "profile" ? (
+              <div className="page-wrap">
+                <div className="page-shell">
+                  <ProfilePage user={user} />
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <ProfileBar profile={profile} onChange={setProfile} />
+                <div className="page-wrap" key={tab}>
+                  <div className="page-shell">
+                    {tab==="essay"     && <EssayReview  profile={profile} onResult={handleEssayResult} />}
+                    {tab==="interview" && <InterviewSim profile={profile} onReport={handleInterviewReport} />}
+                    {tab==="dashboard" && <Dashboard    profile={profile} essayScore={essayScore} interviewScore={interviewScore} onSave={handleDashboardResult} />}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
