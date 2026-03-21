@@ -6,11 +6,19 @@ SCHOOLS = json.loads((Path(__file__).parent.parent / "data" / "schools.json").re
 def build_essay_prompt(essay_text: str, school_name: str, student_profile: dict) -> str:
     school = SCHOOLS.get(school_name, {})
     criteria = "\n".join(f"- {c}" for c in school.get("essay_criteria", []))
-    activities = student_profile.get('activities', [])
+    default_criteria = (
+        "- Clarity of narrative\n"
+        "- Authenticity and voice\n"
+        "- Intellectual curiosity\n"
+        "- Fit with school mission\n"
+        "- Originality"
+    )
+    criteria_text = criteria if criteria else default_criteria
+
+    activities = student_profile.get("activities", [])
     activities_str = ", ".join(activities) if isinstance(activities, list) else str(activities)
 
-    # Major-specific notes
-    major = student_profile.get('major', '')
+    major = student_profile.get("major", "")
     major_notes = school.get("major_specific_notes", {}).get(major, "")
     major_section = f"\nSPECIAL FOCUS FOR {major.upper()}:\n- {major_notes}" if major_notes else ""
     major_instruction = f"\n6. For {major}: check specifically for {major_notes}" if major_notes else ""
@@ -25,7 +33,7 @@ STUDENT PROFILE:
 - Activities: {activities_str}
 
 {school_name} ESSAY CRITERIA:
-{criteria if criteria else "- Clarity of narrative\\n- Authenticity and voice\\n- Intellectual curiosity\\n- Fit with school mission\\n- Originality"}
+{criteria_text}
 {major_section}
 
 STUDENT'S ESSAY:
