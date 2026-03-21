@@ -58,7 +58,25 @@ STUDENT'S ESSAY:
 EVALUATION INSTRUCTIONS:
 1. Read the ENTIRE essay carefully before scoring anything
 2. Be SPECIFIC — quote exact phrases when giving feedback
-3. Flag any CLICHÉ phrases (e.g. "ever since I was young", "passion for", "changed my life")
+3. Flag CLICHÉ phrases ONLY when they are bare/unsupported statements. 
+   A phrase is NOT a cliché if it is:
+   - Backed by a specific story, scene, or concrete example immediately before/after it
+   - Used as a conclusion to a vivid narrative (not as an opening claim)
+   - A common idea expressed in a genuinely original way
+   
+   TRUE clichés to flag (bare, unsupported):
+   - "I have always been passionate about X" (opening with no story)
+   - "This experience changed my life" (closing with no specifics)
+   - "ever since I was young, I knew I wanted to..."
+   - "I learned that anything is possible"
+   - "I realized the importance of teamwork"
+   
+   NOT clichés (supported by context):
+   - "every failure was a chance to learn" → OK if preceded by specific failure story
+   - "technology can change the world" → OK if followed by concrete project/impact
+   - "I found my passion" → OK if the essay shows HOW through specific events
+   
+   When in doubt → DO NOT flag. Only flag when confident it is unsupported.
 4. Assess if the essay sounds GENERIC or truly personal
 5. Check if the student's story CONNECTS to {school_name}'s values/mission
 6. For paragraph_suggestions — find ALL genuinely weak sentences:

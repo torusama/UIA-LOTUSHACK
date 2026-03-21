@@ -273,7 +273,7 @@ function HighlightedEssay({ fullEssay, suggestions }) {
           ❝ {s.quote} ❞
         </div>
         <p style={{ marginBottom: 6 }}><strong style={{ color: "#dc2626" }}>⚠️ Vấn đề:</strong> {s.issue}</p>
-        <p style={{ color: "#15803d" }}><strong>✅ Gợi ý:</strong> {s.suggestion}</p>
+        <p style={{ color: "#15803d" }}><strong>✅ Suggest:</strong> {s.suggestion}</p>
       </div>
     ));
   }
@@ -302,11 +302,12 @@ function HighlightedEssay({ fullEssay, suggestions }) {
       <div style={{
         background: "white", border: "1px solid #e5e7eb",
         borderRadius: 10, padding: 20, marginBottom: 20,
-        fontSize: 14, lineHeight: 1.9, whiteSpace: "pre-wrap",
+        fontSize: 14, lineHeight: 1.9,
         textAlign: "justify",
+        wordBreak: "break-word",
       }}>
         <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10 }}>
-          🟡 Phần tô vàng = cần chỉnh sửa
+          🟡 Highlighted = needs improvement
         </div>
         {highlighted}
       </div>
@@ -318,8 +319,8 @@ function HighlightedEssay({ fullEssay, suggestions }) {
             <div style={{ fontStyle: "italic", color: "#78350f", marginBottom: 8, padding: "6px 10px", background: "#fde68a", borderRadius: 6 }}>
               ❝ {s.quote} ❞
             </div>
-            <p style={{ marginBottom: 6 }}><strong style={{ color: "#dc2626" }}>⚠️ Vấn đề:</strong> {s.issue}</p>
-            <p style={{ color: "#15803d" }}><strong>✅ Gợi ý:</strong> {s.suggestion}</p>
+            <p style={{ marginBottom: 6 }}><strong style={{ color: "#dc2626" }}>⚠️ Issue:</strong> {s.issue}</p>
+            <p style={{ color: "#15803d" }}><strong>✅ Suggest:</strong> {s.suggestion}</p>
           </div>
         ))}
       </div>
@@ -393,7 +394,7 @@ function EssayResult({ result }) {
       {/* Essay highlight */}
       {suggestions.length > 0 && (
         <div className="rcard">
-          <div className="rcard-header">✏️ Essay với highlight cần sửa</div>
+          <div className="rcard-header">✏️ Essay with highlights</div>
           <div style={{ padding: "16px 20px" }}>
             <HighlightedEssay
               fullEssay={result.full_essay_with_highlights}
