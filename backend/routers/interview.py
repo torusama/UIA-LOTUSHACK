@@ -44,7 +44,46 @@ async def interview_ask(req: InterviewTurnRequest):
     messages = req.conversation_history.copy()
     if req.user_answer:
         messages.append({"role": "user", "content": req.user_answer})
+    # ── Check relevance nếu câu trả lời dài ──────────────────────────────
+    if req.user_answer and len(req.user_answer.split()) >= 4:
+        # Lấy câu hỏi gần nhất của AI
+        last_ai_question = ""
+        for m in reversed(req.conversation_history):
+            if m["role"] == "assistant":
+                last_ai_question = m["content"]
+                break
 
+        if last_ai_question:
+            relevance_check = await chat_completion(
+                system_prompt="""You are a relevance checker for a study abroad interview.
+    Given a question and a student's answer, determine if the answer is relevant.
+
+    Return JSON: {"is_relevant": true/false, "reason": "<one sentence why>"}
+
+    An answer is IRRELEVANT if:
+    - It talks about a completely different topic than the question
+    - It's a story or information that has nothing to do with what was asked
+    - It answers a different question entirely
+    - It contains only filler with no real connection to the question
+
+    An answer is RELEVANT even if short, shy, or imperfect — as long as it attempts to address the question.""",
+                messages=[{
+                    "role": "user",
+                    "content": f"Question: {last_ai_question}\n\nStudent's answer: {req.user_answer}\n\nIs this answer relevant to the question?"
+                }],
+                json_mode=True,
+            )
+
+            if not relevance_check.get("is_relevant", True):
+                # Trả về ngay — báo off-topic mà không cần gọi interviewer
+                return JSONResponse(content={
+                    "question": f"That doesn't seem to address my question. Let me ask again — {last_ai_question}",
+                    "feedback_on_previous": f"Your answer didn't quite address what I asked. {relevance_check.get('reason', '')}",
+                    "score_on_previous": {"authenticity": 1, "depth": 1, "school_fit": 1},
+                    "interview_phase": "middle",
+                    "audio_base64": None,
+                    "off_topic": True,
+                })
     ai_response = await chat_completion(
         system_prompt=system_prompt,
         messages=messages,

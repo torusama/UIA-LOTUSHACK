@@ -75,6 +75,17 @@ export default function InterviewSim({ profile, onReport }) {
           setMicWarning(`⚠️ Please answer in English. This is an English-only interview.`);
           return;
         }
+        // Check câu trả lời quá ngắn hoặc vô nghĩa
+        const INVALID_WORDS = ["hello", "hi", "bye", "goodbye", "thanks", "thank you",
+          "yes", "no", "ok", "okay", "sure", "maybe", "hmm", "um", "uh"];
+        const trimmed = data.transcript.trim().toLowerCase();
+        const wordCount = trimmed.split(/\s+/).length;
+        const isInvalid = wordCount <= 3 && INVALID_WORDS.some(w => trimmed.includes(w));
+
+        if (isInvalid || wordCount < 4) {
+          setMicWarning(`⚠️ Your answer is too short. Please give a complete answer to the question.`);
+          return;
+        }
         if (data.analysis) setSpeechAnalysis(data.analysis);
         const currentHistory = historyRef.current;
         // Hiện text người dùng vừa nói — dùng pendingUserText thay vì typewriter riêng
