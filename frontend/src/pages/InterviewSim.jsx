@@ -72,7 +72,7 @@ export default function InterviewSim({ profile, onReport }) {
         // Kiểm tra ngôn ngữ
         if (data.wrong_language) {
           const lang = data.detected_language || "non-English";
-          setMicWarning(`⚠️ You spoke in ${lang}. This is an English interview — please answer in English.`);
+          setMicWarning(`⚠️ Please answer in English. This is an English-only interview.`);
           return;
         }
         if (data.analysis) setSpeechAnalysis(data.analysis);
