@@ -1,35 +1,144 @@
 import { useState, useRef, useEffect } from "react";
-import { interviewAsk, speakQuestion, endInterview } from "../api/client";
+import { interviewAsk, speakQuestion, transcribeAudio, endInterview } from "../api/client";
 import { Button, Tag } from "../components/Button";
 import { ScorePill } from "../components/ScoreDisplay";
 
-const MAX_TURNS = 6;
+const MAX_TURNS = 10;
+const CHARS_PER_MS = 15 / 1000;
 
 export default function InterviewSim({ profile, onReport }) {
-  const [history, setHistory]           = useState([]);
-  const [userInput, setUserInput]       = useState("");
-  const [loading, setLoading]           = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [phase, setPhase]               = useState("idle");
-  const [feedback, setFeedback]         = useState(null);
-  const [report, setReport]             = useState(null);
-  const [turnCount, setTurnCount]       = useState(0);
-  const audioRef  = useRef(null);
-  const bottomRef = useRef(null);
+  const [history, setHistory]               = useState([]);
+  const [loading, setLoading]               = useState(false);
+  const [voiceEnabled, setVoiceEnabled]     = useState(true);
+  const [phase, setPhase]                   = useState("idle");
+  const [feedback, setFeedback]             = useState(null);
+  const [report, setReport]                 = useState(null);
+  const [turnCount, setTurnCount]           = useState(0);
+  const [isRecording, setIsRecording]       = useState(false);
+  const [timeLeft, setTimeLeft]             = useState(9 * 60);
+  const [speechAnalysis, setSpeechAnalysis] = useState(null);
+  const [micWarning, setMicWarning]         = useState("");
+  const [typingText, setTypingText]         = useState("");
+  const [isTyping, setIsTyping]             = useState(false);
+  const [userTypingText, setUserTypingText] = useState("");
+  const [isUserTyping, setIsUserTyping]     = useState(false);
+
+  const audioRef      = useRef(null);
+  const bottomRef     = useRef(null);
+  const mediaRecRef   = useRef(null);
+  const chunksRef     = useRef([]);
+  const timerRef      = useRef(null);
+  const historyRef    = useRef([]);
+  const turnCountRef  = useRef(0);
+  const typingRef     = useRef(null);
+  const userTypingRef = useRef(null);
+
+  // Sync historyRef mỗi khi history thay đổi
+  useEffect(() => { historyRef.current = history; }, [history]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [history, feedback]);
+  }, [history, feedback, speechAnalysis, typingText, userTypingText]);
+
+  function startTypewriter(text) {
+    clearInterval(typingRef.current);
+    setTypingText("");
+    setIsTyping(true);
+    const totalMs = text.length / CHARS_PER_MS;
+    const delay   = Math.max(20, Math.min(60, totalMs / text.length));
+    let i = 0;
+    typingRef.current = setInterval(() => {
+      i++;
+      setTypingText(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(typingRef.current);
+        setIsTyping(false);
+      }
+    }, delay);
+  }
+
+  function startUserTypewriter(text) {
+    clearInterval(userTypingRef.current);
+    setUserTypingText("");
+    setIsUserTyping(true);
+    let i = 0;
+    userTypingRef.current = setInterval(() => {
+      i++;
+      setUserTypingText(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(userTypingRef.current);
+        setIsUserTyping(false);
+        setUserTypingText("");
+      }
+    }, 30);
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        if (blob.size < 8000) {
+          setMicWarning("⚠️ Không nghe thấy gì. Hãy thử ghi âm lại và nói rõ hơn.");
+          return;
+        }
+        setMicWarning("");
+        const data = await transcribeAudio(blob);
+        if (!data.transcript?.trim()) {
+          setMicWarning("⚠️ Không nhận diện được giọng nói. Hãy nói gần mic hơn và thử lại.");
+          return;
+        }
+        if (data.analysis) setSpeechAnalysis(data.analysis);
+
+        // Lấy history tại thời điểm này từ ref — luôn mới nhất
+        const currentHistory = historyRef.current;
+        startUserTypewriter(data.transcript);
+        await new Promise(r => setTimeout(r, data.transcript.length * 30 + 200));
+        await sendTurn(currentHistory, data.transcript);
+      };
+      mediaRecRef.current = mr;
+      mr.start(200);
+      setIsRecording(true);
+    } catch (err) {
+      setMicWarning("⚠️ Không thể truy cập microphone. Kiểm tra quyền trình duyệt.");
+    }
+  }
+
+  function stopRecording() {
+    mediaRecRef.current?.stop();
+    mediaRecRef.current?.stream?.getTracks().forEach(t => t.stop());
+    setIsRecording(false);
+  }
 
   async function startInterview() {
     setPhase("active");
     setHistory([]);
+    historyRef.current = [];
     setTurnCount(0);
+    turnCountRef.current = 0;
     setFeedback(null);
     setReport(null);
+    setSpeechAnalysis(null);
+    setMicWarning("");
+    setTypingText("");
+    setIsTyping(false);
+    setUserTypingText("");
+    setIsUserTyping(false);
+    setTimeLeft(9 * 60);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) { clearInterval(timerRef.current); handleEnd(); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    // Gọi với mảng rỗng trực tiếp — không dùng historyRef ở đây
     await sendTurn([], "");
   }
 
+  // sendTurn nhận currentHistory làm tham số — không đọc từ ref/state
   async function sendTurn(currentHistory, answer) {
     setLoading(true);
     try {
@@ -40,29 +149,45 @@ export default function InterviewSim({ profile, onReport }) {
         answer,
       );
 
-      const aiMsg = { role: "assistant", content: data.question };
-      const newHistory = answer
+      const questionText = data.question || "";
+      const aiMsg = { role: "assistant", content: questionText };
+      const newHistory = answer.trim()
         ? [...currentHistory, { role: "user", content: answer }, aiMsg]
-        : [aiMsg];
+        : [...currentHistory, aiMsg];
 
+      // Cập nhật cả state lẫn ref cùng lúc
       setHistory(newHistory);
-      setTurnCount((n) => n + 1);
+      historyRef.current = newHistory;
+
+      setTurnCount((n) => { turnCountRef.current = n + 1; return n + 1; });
       setFeedback(
         data.feedback_on_previous
           ? { text: data.feedback_on_previous, scores: data.score_on_previous }
           : null
       );
 
-      if (voiceEnabled && data.question) {
+      if (questionText) startTypewriter(questionText);
+
+      if (voiceEnabled && questionText) {
         try {
-          const url = await speakQuestion(data.question);
-          audioRef.current.src = url;
-          audioRef.current.play();
-        } catch { /* voice optional */ }
+          if (data.audio_base64) {
+            const bytes = Uint8Array.from(atob(data.audio_base64), c => c.charCodeAt(0));
+            const blob  = new Blob([bytes], { type: "audio/mpeg" });
+            audioRef.current.src = URL.createObjectURL(blob);
+            audioRef.current.play().catch((err) => console.error("❌ Audio play failed:", err));
+          } else {
+            const url = await speakQuestion(questionText);
+            audioRef.current.src = url;
+            audioRef.current.play().catch((err) => console.error("❌ Audio play failed:", err));
+          }
+        } catch (err) {
+          console.error("❌ Voice error:", err);
+        }
       }
 
-      if (data.interview_phase === "closing" || turnCount + 1 >= MAX_TURNS) {
+      if (data.interview_phase === "closing" || turnCountRef.current >= MAX_TURNS) {
         setPhase("ended");
+        await handleEnd();
       }
     } catch (e) {
       console.error(e);
@@ -71,20 +196,15 @@ export default function InterviewSim({ profile, onReport }) {
     }
   }
 
-  async function handleSend() {
-    if (!userInput.trim()) return;
-    const answer = userInput;
-    setUserInput("");
-    await sendTurn(history, answer);
-  }
-
   async function handleEnd() {
+    clearInterval(timerRef.current);
+    clearInterval(typingRef.current);
     setPhase("ended");
     setLoading(true);
     try {
-      const data = await endInterview(profile.school_name || "MIT", history);
+      const data = await endInterview(profile.school_name || "MIT", historyRef.current);
       setReport(data);
-      onReport(data);
+      onReport?.(data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -94,6 +214,7 @@ export default function InterviewSim({ profile, onReport }) {
 
   return (
     <section>
+      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>Mock Interview — {profile.school_name || "MIT"}</h2>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#6b7280", marginLeft: "auto" }}>
@@ -106,6 +227,13 @@ export default function InterviewSim({ profile, onReport }) {
           </Tag>
         )}
       </div>
+
+      {/* Timer */}
+      {phase === "active" && (
+        <div style={{ fontSize: 20, fontWeight: 700, color: timeLeft < 60 ? "red" : "#374151", marginBottom: 12 }}>
+          ⏱ {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}
+        </div>
+      )}
 
       <audio ref={audioRef} style={{ display: "none" }} />
 
@@ -121,34 +249,127 @@ export default function InterviewSim({ profile, onReport }) {
           </p>
         )}
 
-        {history.map((msg, i) => <ChatBubble key={i} role={msg.role} content={msg.content} />)}
+        {history.map((msg, i) => {
+          const isLastAI = msg.role === "assistant" && i === history.length - 1;
+          return (
+            <ChatBubble
+              key={i}
+              role={msg.role}
+              content={isLastAI && isTyping ? typingText : msg.content}
+              isTyping={isLastAI && isTyping}
+            />
+          );
+        })}
+
+        {/* Bubble typewriter của user */}
+        {isUserTyping && userTypingText && (
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+            <div style={{
+              maxWidth: "75%", background: "#e5e7eb", color: "#111827",
+              borderRadius: "12px 12px 0 12px",
+              padding: "10px 14px", fontSize: 14, lineHeight: 1.6,
+            }}>
+              {userTypingText}
+              <span style={{
+                display: "inline-block", width: 2, height: 14,
+                background: "#111827", marginLeft: 2, verticalAlign: "middle",
+                animation: "blink 0.7s step-end infinite",
+              }} />
+            </div>
+          </div>
+        )}
+
         {feedback && <FeedbackBanner feedback={feedback} />}
-        {loading && <p style={{ color: "#9ca3af", fontSize: 13, marginTop: 8 }}>Interviewer đang suy nghĩ...</p>}
+        {speechAnalysis && <SpeechAnalysisCard analysis={speechAnalysis} />}
+        {loading && !isTyping && (
+          <p style={{ color: "#9ca3af", fontSize: 13, marginTop: 8 }}>Interviewer đang suy nghĩ...</p>
+        )}
         <div ref={bottomRef} />
       </div>
 
-      {/* Controls */}
+      {/* Controls: idle */}
       {phase === "idle" && (
-        <Button onClick={startInterview}>Bắt đầu phỏng vấn</Button>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <Button onClick={startInterview}>Bắt đầu phỏng vấn</Button>
+        </div>
       )}
 
+      {/* Controls: active — chỉ có mic ở giữa */}
       {phase === "active" && (
-        <div style={{ display: "flex", gap: 10 }}>
-          <textarea
-            rows={3}
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            placeholder="Nhập câu trả lời... (Ctrl+Enter để gửi)"
-            onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) handleSend(); }}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+
+          {/* Nút mic lớn ở giữa */}
+          <button
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={loading || isTyping}
             style={{
-              flex: 1, padding: 10, borderRadius: 8,
-              border: "1px solid #d1d5db", fontSize: 14, resize: "vertical",
+              width: 72, height: 72, borderRadius: "50%",
+              background: isRecording ? "#dc2626" : "#1e40af",
+              border: "none", color: "white", fontSize: 28,
+              cursor: (loading || isTyping) ? "not-allowed" : "pointer",
+              boxShadow: isRecording
+                ? "0 0 0 10px rgba(220,38,38,0.2), 0 0 0 20px rgba(220,38,38,0.08)"
+                : "0 4px 14px rgba(30,64,175,0.35)",
+              opacity: (loading || isTyping) ? 0.5 : 1,
+              transition: "all 0.2s",
             }}
-          />
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Button onClick={handleSend} disabled={loading}>Gửi</Button>
-            <Button onClick={handleEnd} disabled={loading} variant="secondary">Kết thúc</Button>
-          </div>
+            title={isTyping ? "Chờ interviewer nói xong..." : isRecording ? "Dừng ghi âm" : "Nhấn để trả lời"}
+          >
+            {isTyping ? "🔊" : isRecording ? "⏹" : "🎤"}
+          </button>
+
+          {/* Trạng thái bên dưới mic */}
+          {isTyping && (
+            <div style={{ color: "#1e40af", fontSize: 13, textAlign: "center" }}>
+              🔊 Interviewer đang nói... chờ xong rồi trả lời
+            </div>
+          )}
+          {isRecording && !isTyping && (
+            <div style={{ color: "#dc2626", fontSize: 13, textAlign: "center" }}>
+              ● Đang ghi âm... nhấn ⏹ để gửi
+            </div>
+          )}
+          {!isRecording && !isTyping && !loading && (
+            <div style={{ color: "#9ca3af", fontSize: 13, textAlign: "center" }}>
+              Nhấn 🎤 để trả lời
+            </div>
+          )}
+
+          {/* Mic warning */}
+          {micWarning && (
+            <div style={{
+              background: "#fef2f2", border: "1px solid #fca5a5",
+              borderRadius: 8, padding: "10px 14px", color: "#dc2626",
+              fontSize: 13, display: "flex", alignItems: "center", gap: 8,
+              maxWidth: 400, width: "100%",
+            }}>
+              {micWarning}
+              <button
+                onClick={() => { setMicWarning(""); startRecording(); }}
+                style={{
+                  marginLeft: "auto", padding: "4px 12px",
+                  background: "#dc2626", color: "white",
+                  border: "none", borderRadius: 6, fontSize: 12, cursor: "pointer",
+                }}
+              >
+                Ghi âm lại
+              </button>
+            </div>
+          )}
+
+          {/* Nút kết thúc nhỏ */}
+          <button
+            onClick={handleEnd}
+            disabled={loading}
+            style={{
+              padding: "6px 20px", background: "transparent",
+              color: "#9ca3af", border: "1px solid #e5e7eb",
+              borderRadius: 20, fontSize: 12, cursor: "pointer",
+              marginTop: 4,
+            }}
+          >
+            Kết thúc phỏng vấn
+          </button>
         </div>
       )}
 
@@ -157,7 +378,7 @@ export default function InterviewSim({ profile, onReport }) {
   );
 }
 
-function ChatBubble({ role, content }) {
+function ChatBubble({ role, content, isTyping }) {
   const isAI = role === "assistant";
   return (
     <div style={{ display: "flex", justifyContent: isAI ? "flex-start" : "flex-end", marginBottom: 10 }}>
@@ -166,11 +387,23 @@ function ChatBubble({ role, content }) {
         background: isAI ? "#1e40af" : "#e5e7eb",
         color: isAI ? "white" : "#111827",
         borderRadius: isAI ? "12px 12px 12px 0" : "12px 12px 0 12px",
-        padding: "10px 14px", fontSize: 14, lineHeight: 1.6,
+        padding: "10px 14px", fontSize: 14, lineHeight: 1.6, minHeight: 20,
       }}>
-        {isAI && <span style={{ fontSize: 11, opacity: 0.7, display: "block", marginBottom: 4 }}>Interviewer</span>}
+        {isAI && (
+          <span style={{ fontSize: 11, opacity: 0.7, display: "block", marginBottom: 4 }}>
+            {isTyping ? "🔊 Interviewer đang nói..." : "Interviewer"}
+          </span>
+        )}
         {content}
+        {isTyping && (
+          <span style={{
+            display: "inline-block", width: 2, height: 14,
+            background: "white", marginLeft: 2, verticalAlign: "middle",
+            animation: "blink 0.7s step-end infinite",
+          }} />
+        )}
       </div>
+      <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
     </div>
   );
 }
@@ -194,6 +427,60 @@ function FeedbackBanner({ feedback }) {
   );
 }
 
+function SpeechAnalysisCard({ analysis }) {
+  if (!analysis) return null;
+  const tone = analysis.tone_analysis || {};
+  const toneColors = {
+    very_enthusiastic: { bg: "#dcfce7", text: "#15803d", emoji: "🔥" },
+    enthusiastic:      { bg: "#d1fae5", text: "#065f46", emoji: "😊" },
+    neutral:           { bg: "#fef9c3", text: "#92400e", emoji: "😐" },
+    flat:              { bg: "#fee2e2", text: "#dc2626", emoji: "😶" },
+    nervous:           { bg: "#fef3c7", text: "#b45309", emoji: "😰" },
+  };
+  const tc = toneColors[tone.tone_label] || toneColors.neutral;
+  return (
+    <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14, margin: "10px 0", fontSize: 13 }}>
+      <div style={{ fontWeight: 700, marginBottom: 10, color: "#1e293b" }}>🎙️ Phân tích giọng nói</div>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: tc.bg, color: tc.text, borderRadius: 20, padding: "3px 12px", fontWeight: 600, marginBottom: 10, fontSize: 12 }}>
+        {tc.emoji} {tone.tone_label?.replace(/_/g, " ").toUpperCase()}
+      </div>
+      {tone.tone_summary && <div style={{ color: "#475569", marginBottom: 10 }}>{tone.tone_summary}</div>}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        {[["Nhiệt huyết", tone.enthusiasm_score], ["Tự tin", tone.confidence_score], ["Rõ ràng", tone.clarity_score]].map(([label, score]) =>
+          score != null && (
+            <div key={label} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "4px 10px", textAlign: "center" }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: score >= 7 ? "#16a34a" : score >= 5 ? "#d97706" : "#dc2626" }}>{score}/10</div>
+              <div style={{ fontSize: 11, color: "#64748b" }}>{label}</div>
+            </div>
+          )
+        )}
+      </div>
+      {(analysis.pronunciation_issues || []).length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>⚠️ Phát âm cần chú ý:</div>
+          {analysis.pronunciation_issues.map((p, i) => (
+            <div key={i} style={{ background: "#fff7ed", borderLeft: "3px solid #f97316", borderRadius: "0 6px 6px 0", padding: "5px 10px", marginBottom: 4 }}>
+              <strong>"{p.word}"</strong> — {p.issue}. Thử: <em>{p.suggestion}</em>
+            </div>
+          ))}
+        </div>
+      )}
+      {(analysis.filler_words || []).length > 0 && (
+        <div style={{ marginBottom: 10, color: "#64748b" }}>
+          🗣️ Filler words: {analysis.filler_words.map(w => (
+            <span key={w} style={{ background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", margin: "0 3px", fontSize: 12 }}>{w}</span>
+          ))}
+        </div>
+      )}
+      {analysis.overall_speech_tip && (
+        <div style={{ background: "#eff6ff", borderRadius: 8, padding: "8px 12px", color: "#1e40af", fontSize: 12 }}>
+          💡 {analysis.overall_speech_tip}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InterviewReport({ report }) {
   const dims = report.dimension_scores || {};
   const signalMap = {
@@ -203,40 +490,57 @@ function InterviewReport({ report }) {
   };
   const signal = report.admission_likelihood_signal || "moderate";
   const col    = signalMap[signal];
-
   return (
     <div style={{ background: "#f0f9ff", borderRadius: 12, padding: 20, marginTop: 20 }}>
       <h3 style={{ margin: "0 0 16px" }}>Kết quả phỏng vấn</h3>
-
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontSize: 60, fontWeight: 700, color: "#1e40af", lineHeight: 1 }}>
-            {report.overall_score}
-          </div>
+          <div style={{ fontSize: 60, fontWeight: 700, color: "#1e40af", lineHeight: 1 }}>{report.overall_score}</div>
           <div style={{ fontSize: 12, color: "#6b7280" }}>Overall score</div>
         </div>
+        {report.admission_likelihood_percent != null && (
+          <div>
+            <div style={{ fontSize: 40, fontWeight: 700, color: "#7c3aed", lineHeight: 1 }}>{report.admission_likelihood_percent}%</div>
+            <div style={{ fontSize: 12, color: "#6b7280" }}>Khả năng đậu</div>
+          </div>
+        )}
         <span style={{ background: col.bg, color: col.text, padding: "5px 14px", borderRadius: 20, fontWeight: 600 }}>
           {signal.toUpperCase()} signal
         </span>
       </div>
-
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-        {Object.entries(dims).map(([k, v]) => (
-          <ScorePill key={k} label={k.replace(/_/g, " ")} score={v} />
-        ))}
+        {Object.entries(dims).map(([k, v]) => <ScorePill key={k} label={k.replace(/_/g, " ")} score={v} />)}
       </div>
-
+      {report.intro_assessment && (
+        <div style={{ background: "#eff6ff", borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 14 }}>
+          <strong>🎯 Đánh giá phần giới thiệu:</strong>
+          <p style={{ margin: "6px 0 0", color: "#374151" }}>{report.intro_assessment}</p>
+        </div>
+      )}
       {report.summary && <p style={{ color: "#374151", marginBottom: 14, fontSize: 14 }}>{report.summary}</p>}
-
-      {(report.improvement_tips || []).length > 0 && (
-        <>
-          <strong style={{ fontSize: 14 }}>Cần cải thiện:</strong>
+      {(report.top_moments || []).length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <strong style={{ fontSize: 14 }}>✨ Điểm sáng:</strong>
           <ul style={{ paddingLeft: 20, marginTop: 6 }}>
-            {report.improvement_tips.map((tip, i) => (
-              <li key={i} style={{ marginBottom: 6, fontSize: 14 }}>{tip}</li>
-            ))}
+            {report.top_moments.map((m, i) => <li key={i} style={{ marginBottom: 6, fontSize: 14, color: "#15803d" }}>{m}</li>)}
           </ul>
-        </>
+        </div>
+      )}
+      {(report.improvement_tips || []).length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <strong style={{ fontSize: 14 }}>📌 Cần cải thiện:</strong>
+          <ul style={{ paddingLeft: 20, marginTop: 6 }}>
+            {report.improvement_tips.map((tip, i) => <li key={i} style={{ marginBottom: 6, fontSize: 14 }}>{tip}</li>)}
+          </ul>
+        </div>
+      )}
+      {(report.next_steps || []).length > 0 && (
+        <div>
+          <strong style={{ fontSize: 14 }}>🚀 Bước tiếp theo:</strong>
+          <ul style={{ paddingLeft: 20, marginTop: 6 }}>
+            {report.next_steps.map((s, i) => <li key={i} style={{ marginBottom: 6, fontSize: 14 }}>{s}</li>)}
+          </ul>
+        </div>
       )}
     </div>
   );
