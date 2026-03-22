@@ -59,32 +59,61 @@ const css = `
 function UserMenu({ user, onLogout, onProfile }) {
   const [open, setOpen] = useState(false);
   const initials =
-    user.name?.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "U";
+    user.name
+      ?.split(" ")
+      .map((w) => w[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "U";
 
   return (
     <div style={{ position: "relative", marginLeft: 16 }}>
       <button
         onClick={() => setOpen((o) => !o)}
         style={{
-          display: "flex", alignItems: "center", gap: 8,
-          background: "none", border: "1.5px solid #c5c6cd",
-          borderRadius: 999, padding: "4px 12px 4px 4px",
-          cursor: "pointer", transition: "border-color 0.15s",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "none",
+          border: "1.5px solid #c5c6cd",
+          borderRadius: 999,
+          padding: "4px 12px 4px 4px",
+          cursor: "pointer",
+          transition: "border-color 0.15s",
         }}
         onMouseEnter={(e) => (e.currentTarget.style.borderColor = T.cobalt)}
         onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#c5c6cd")}
       >
         {user.avatar ? (
-          <img src={user.avatar} alt=""
-            style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }}
-            referrerPolicy="no-referrer" />
+          <img
+            src={user.avatar}
+            alt=""
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              objectFit: "cover",
+            }}
+            referrerPolicy="no-referrer"
+          />
         ) : (
-          <div style={{
-            width: 28, height: 28, borderRadius: "50%",
-            background: "linear-gradient(135deg,#001946,#2559bd)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: "'Manrope',sans-serif",
-          }}>{initials}</div>
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg,#001946,#2559bd)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 11,
+              fontWeight: 800,
+              color: "#fff",
+              fontFamily: "'Manrope',sans-serif",
+            }}
+          >
+            {initials}
+          </div>
         )}
         <span style={{ fontSize: 13, fontWeight: 600, color: T.onSurface }}>
           {user.name?.split(" ")[0]}
@@ -93,44 +122,84 @@ function UserMenu({ user, onLogout, onProfile }) {
       </button>
 
       {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 8px)", right: 0,
-          background: "#fff", borderRadius: 16,
-          boxShadow: "0 8px 32px rgba(27,28,26,0.12)",
-          padding: 8, minWidth: 190, zIndex: 100,
-          animation: "pgIn 0.15s ease",
-        }}>
-          <div style={{ padding: "10px 12px 12px", borderBottom: "1px solid rgba(197,198,205,0.3)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.navy }}>{user.name}</div>
-            <div style={{ fontSize: 11, color: T.onSurfaceVar, marginTop: 2 }}>{user.email}</div>
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            right: 0,
+            background: "#fff",
+            borderRadius: 16,
+            boxShadow: "0 8px 32px rgba(27,28,26,0.12)",
+            padding: 8,
+            minWidth: 190,
+            zIndex: 100,
+            animation: "pgIn 0.15s ease",
+          }}
+        >
+          <div
+            style={{
+              padding: "10px 12px 12px",
+              borderBottom: "1px solid rgba(197,198,205,0.3)",
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.navy }}>
+              {user.name}
+            </div>
+            <div style={{ fontSize: 11, color: T.onSurfaceVar, marginTop: 2 }}>
+              {user.email}
+            </div>
           </div>
 
-          {/* Hồ sơ cá nhân */}
+          {/* Profile */}
           <button
-            onClick={() => { setOpen(false); onProfile(); }}
+            onClick={() => {
+              setOpen(false);
+              onProfile();
+            }}
             style={{
-              display: "flex", alignItems: "center", gap: 8,
-              width: "100%", textAlign: "left",
-              padding: "10px 12px", background: "none", border: "none",
-              fontSize: 13, fontWeight: 600, color: T.onSurface,
-              cursor: "pointer", borderRadius: 10, marginTop: 4,
-              fontFamily: "'Inter',sans-serif", transition: "background 0.15s",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              textAlign: "left",
+              padding: "10px 12px",
+              background: "none",
+              border: "none",
+              fontSize: 13,
+              fontWeight: 600,
+              color: T.onSurface,
+              cursor: "pointer",
+              borderRadius: 10,
+              marginTop: 4,
+              fontFamily: "'Inter',sans-serif",
+              transition: "background 0.15s",
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
           >
-            <span>👤</span> Hồ sơ cá nhân
+            <span>👤</span> Profile
           </button>
 
           {/* Sign out */}
           <button
-            onClick={() => { setOpen(false); onLogout(); }}
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
             style={{
-              display: "block", width: "100%", textAlign: "left",
-              padding: "10px 12px", background: "none", border: "none",
-              fontSize: 13, fontWeight: 600, color: "#c0392b",
-              cursor: "pointer", borderRadius: 10,
-              fontFamily: "'Inter',sans-serif", transition: "background 0.15s",
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              padding: "10px 12px",
+              background: "none",
+              border: "none",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#c0392b",
+              cursor: "pointer",
+              borderRadius: 10,
+              fontFamily: "'Inter',sans-serif",
+              transition: "background 0.15s",
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "#fdf2f2")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
@@ -171,7 +240,9 @@ export default function App() {
           summary: data.summary || "",
           full_result: data,
         });
-      } catch (e) { console.warn("Save essay failed:", e); }
+      } catch (e) {
+        console.warn("Save essay failed:", e);
+      }
     }
   }
 
@@ -186,7 +257,9 @@ export default function App() {
           summary: data.summary || "",
           full_result: data,
         });
-      } catch (e) { console.warn("Save interview failed:", e); }
+      } catch (e) {
+        console.warn("Save interview failed:", e);
+      }
     }
   }
 
@@ -202,7 +275,9 @@ export default function App() {
           top_gaps: scoreData.top_gaps || [],
           full_result: scoreData,
         });
-      } catch (e) { console.warn("Save dashboard failed:", e); }
+      } catch (e) {
+        console.warn("Save dashboard failed:", e);
+      }
     }
   }
 
@@ -212,17 +287,31 @@ export default function App() {
     setScreen("landing");
   };
 
-  if (!authChecked) return (
-    <div style={{
-      display: "flex", alignItems: "center", justifyContent: "center",
-      height: "100vh",
-      background: "linear-gradient(160deg,#dbeafe 0%,#ede9fe 40%,#bfdbfe 70%,#e0f2fe 100%)",
-    }}>
-      <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 18, color: T.navy, opacity: 0.4 }}>
-        UniMatch AI
+  if (!authChecked)
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+          background:
+            "linear-gradient(160deg,#dbeafe 0%,#ede9fe 40%,#bfdbfe 70%,#e0f2fe 100%)",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "'Manrope',sans-serif",
+            fontWeight: 800,
+            fontSize: 18,
+            color: T.navy,
+            opacity: 0.4,
+          }}
+        >
+          UniMatch AI
+        </div>
       </div>
-    </div>
-  );
+    );
 
   return (
     <>
@@ -238,26 +327,67 @@ export default function App() {
 
       {screen === "auth" && (
         <AuthPage
-          onSuccess={(u) => { setUser(u); setScreen("app"); }}
+          onSuccess={(u) => {
+            setUser(u);
+            setScreen("app");
+          }}
           onBack={() => setScreen("landing")}
         />
       )}
 
       {(screen === "app" || screen === "profile") && user && (
-        <div style={{
-          minHeight: "100vh",
-          background: "linear-gradient(160deg,#dbeafe 0%,#ede9fe 40%,#bfdbfe 70%,#e0f2fe 100%)",
-          position: "relative",
-        }}>
+        <div
+          style={{
+            minHeight: "100vh",
+            background:
+              "linear-gradient(160deg,#dbeafe 0%,#ede9fe 40%,#bfdbfe 70%,#e0f2fe 100%)",
+            position: "relative",
+          }}
+        >
           {/* Decorative blobs */}
-          <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
-            backgroundImage: "linear-gradient(rgba(99,102,241,0.09) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.09) 1px,transparent 1px)",
-            backgroundSize: "48px 48px",
-            maskImage: "radial-gradient(ellipse 90% 80% at 50% 20%,black 20%,transparent 100%)",
-            WebkitMaskImage: "radial-gradient(ellipse 90% 80% at 50% 20%,black 20%,transparent 100%)",
-          }} />
-          <div style={{ position: "fixed", top: "-5%", left: "15%", width: 500, height: 500, borderRadius: "50%", background: "rgba(147,197,253,0.3)", filter: "blur(90px)", pointerEvents: "none", zIndex: 0 }} />
-          <div style={{ position: "fixed", top: "30%", right: "-5%", width: 380, height: 380, borderRadius: "50%", background: "rgba(196,181,253,0.2)", filter: "blur(80px)", pointerEvents: "none", zIndex: 0 }} />
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              pointerEvents: "none",
+              zIndex: 0,
+              backgroundImage:
+                "linear-gradient(rgba(99,102,241,0.09) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.09) 1px,transparent 1px)",
+              backgroundSize: "48px 48px",
+              maskImage:
+                "radial-gradient(ellipse 90% 80% at 50% 20%,black 20%,transparent 100%)",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 90% 80% at 50% 20%,black 20%,transparent 100%)",
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "-5%",
+              left: "15%",
+              width: 500,
+              height: 500,
+              borderRadius: "50%",
+              background: "rgba(147,197,253,0.3)",
+              filter: "blur(90px)",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "30%",
+              right: "-5%",
+              width: 380,
+              height: 380,
+              borderRadius: "50%",
+              background: "rgba(196,181,253,0.2)",
+              filter: "blur(80px)",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
 
           <header className="app-header app-enter" style={{ zIndex: 10 }}>
             <span className="brand">UniMatch AI</span>
@@ -280,19 +410,40 @@ export default function App() {
               <button
                 onClick={() => setScreen("app")}
                 style={{
-                  marginLeft: "auto", display: "flex", alignItems: "center", gap: 6,
-                  background: "none", border: "1.5px solid #c5c6cd", borderRadius: 999,
-                  padding: "6px 16px", cursor: "pointer", fontSize: 13, fontWeight: 600, color: T.onSurface,
+                  marginLeft: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "none",
+                  border: "1.5px solid #c5c6cd",
+                  borderRadius: 999,
+                  padding: "6px 16px",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: T.onSurface,
                 }}
               >
-                ← Quay lại
+                ← Go back
               </button>
             )}
 
-            <UserMenu user={user} onLogout={handleLogout} onProfile={() => setScreen("profile")} />
+            <UserMenu
+              user={user}
+              onLogout={handleLogout}
+              onProfile={() => setScreen("profile")}
+            />
           </header>
 
-          <div style={{ maxWidth: 980, margin: "0 auto", padding: "0 20px 40px", position: "relative", zIndex: 1 }}>
+          <div
+            style={{
+              maxWidth: 980,
+              margin: "0 auto",
+              padding: "0 20px 40px",
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
             {screen === "profile" ? (
               <div className="page-wrap">
                 <div className="page-shell">
@@ -305,10 +456,16 @@ export default function App() {
                 <div className="page-wrap" key={tab}>
                   <div className="page-shell">
                     {tab === "essay" && (
-                      <EssayReview profile={profile} onResult={handleEssayResult} />
+                      <EssayReview
+                        profile={profile}
+                        onResult={handleEssayResult}
+                      />
                     )}
                     {tab === "interview" && (
-                      <InterviewSim profile={profile} onReport={handleInterviewReport} />
+                      <InterviewSim
+                        profile={profile}
+                        onReport={handleInterviewReport}
+                      />
                     )}
                     {tab === "dashboard" && (
                       <Dashboard
